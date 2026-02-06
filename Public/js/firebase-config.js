@@ -7,7 +7,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDGKNG6y3nW_6uNfJcfwVCYEvFgvefiYLA",
+  apiKey: "HIER_API_EINFÜGEN",
   authDomain: "geschenke-manager.firebaseapp.com",
   projectId: "geschenke-manager",
   storageBucket: "geschenke-manager.firebasestorage.app",
