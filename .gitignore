@@ -1,0 +1,3 @@
+node_modules/
+.firebase/
+public/js/firebase-config.js
