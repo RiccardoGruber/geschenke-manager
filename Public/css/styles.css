@@ -1,0 +1,57 @@
+:root {
+            --primary-bg: #f8f9fa;
+            --brand-color: #2f00ff;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background-color: #fff !important;
+        }
+
+        .brand-text {
+            font-weight: 700;
+            color: var(--brand-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .main-content {
+            flex: 1;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .status-badge {
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+
+        .card-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+        }
+
+        .code-snippet {
+            background-color: #2d2d2d;
+            color: #e6e6e6;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }

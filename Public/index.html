@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geschenke-Manager | Setup</title>
+    
+    <!-- Bootstrap 5 CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons (Optional für UI) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- eigene CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
+        <div class="container">
+            <a class="navbar-brand brand-text" href="#">
+                <i class="bi bi-gift-fill"></i> Geschenke-Manager
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item">
+                        <!-- Status Indicator für Schritt 4 -->
+                        <span id="system-status" class="badge bg-secondary rounded-pill px-3 py-2">
+                            <i class="bi bi-circle-fill me-1" style="font-size: 0.6em;"></i> System Status: Lädt...
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                
+                <!-- Welcome Card -->
+                <div class="card card-custom p-4 mb-4">
+                    <div class="card-body">
+                        <h1 class="h3 mb-3 fw-bold">Projekt Initialisierung</h1>
+                        <p class="text-muted">
+                            Willkommen! Dieses Dashboard dient als technische Status Meldung.
+                        </p>
+                        <hr>
+                        <div class="d-flex align-items-start gap-3 mt-4">
+                            <div class="bg-light p-3 rounded-circle text-primary">
+                                <i class="bi bi-database-check fs-4"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold">Datenbank Verbindung</h5>
+                                <p class="mb-2">Beim Laden dieser Seite versuchen wir, einen Test-Eintrag in Firestore zu erstellen.</p>
+                                <div id="console-output" class="alert alert-light border small mt-2">
+                                    <span class="spinner-border spinner-border-sm text-secondary me-2" role="status"></span>
+                                    Verbinde mit Firebase...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Card (Architecture) -->
+                <div class="card card-custom p-4">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Nächste Schritte für das Team (TEST)</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item bg-transparent px-0"><i class="bi bi-check2-circle text-success me-2"></i>Ordnerstruktur angelegt</li>
+                            <li class="list-group-item bg-transparent px-0"><i class="bi bi-check2-circle text-success me-2"></i>Bootstrap 5 Integration</li>
+                            <li class="list-group-item bg-transparent px-0"><i class="bi bi-arrow-right-circle text-primary me-2"></i>Datenmodell für Personen & Geschenke entwerfen</li>
+                            <li class="list-group-item bg-transparent px-0"><i class="bi bi-circle text-muted me-2"></i>UI für "Person hinzufügen" bauen</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- eigene JS -->
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
