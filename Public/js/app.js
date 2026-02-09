@@ -1,6 +1,15 @@
 import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { auth, db } from './firebase-config.js';
+import { isLoggedIn } from "./auth-adapter.js";
+
+/**
+ * Wenn nicht eingeloggt, zurück zur Login-Seite.
+ * (Aktuell UI-Login; später kann isLoggedIn() Firebase Auth nutzen.)
+ */
+if (!isLoggedIn()) {
+  window.location.href = "./login.html";
+}
 
 // UI Referenzen
 const statusBadge = document.getElementById('system-status');
