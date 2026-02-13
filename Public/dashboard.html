@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Geschenke Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Header / Navigationsbar */
+        .dashboard-header {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .dashboard-logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Navigationsleiste in der Mitte */
+        .dashboard-nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .nav-btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            background-color: transparent;
+            color: #2c3e50;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover {
+            background-color: #ecf0f1;
+            color: #3498db;
+        }
+
+        .nav-btn.active {
+            background-color: #3498db;
+            color: white;
+        }
+
+        /* Profil-Bereich oben rechts */
+        .dashboard-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding-left: 1rem;
+            border-left: 1px solid #ecf0f1;
+        }
+
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .profile-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .profile-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem 0.8rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .profile-menu:hover {
+            background-color: #ecf0f1;
+        }
+
+        .profile-name {
+            font-size: 0.9rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .profile-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-content a,
+        .dropdown-content button {
+            color: #2c3e50;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            border: none;
+            background: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: left;
+        }
+
+        .dropdown-content a:hover,
+        .dropdown-content button:hover {
+            background-color: #ecf0f1;
+        }
+
+        .dropdown-content button.logout-btn {
+            color: #e74c3c;
+        }
+
+        .dropdown-content button.logout-btn:hover {
+            background-color: #fadbd8;
+        }
+
+        /* Hauptinhalt */
+        .dashboard-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-welcome {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-welcome h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard-welcome p {
+            color: #7f8c8d;
+            margin: 0;
+        }
+
+        /* Placeholder für Inhalte */
+        .content-area {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .content-placeholder {
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .content-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+
+        /* Listen-Styling */
+        .list-group {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+        }
+
+        .list-group-item {
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+            border-left-color: #3498db;
+        }
+
+        .list-group-item h6 {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .badge {
+            font-weight: 600;
+        }
+    
+    </style>
+</head>
+<body>
+    <!-- Header mit Navigation und Profil -->
+    <div class="dashboard-header">
+        <div class="dashboard-logo">
+            <i class="bi bi-gift"></i>
+            Geschenke Manager
+        </div>
+
+        <nav class="dashboard-nav">
+            <button class="nav-btn active" data-section="dashboard">
+                <i class="bi bi-house"></i> Dashboard
+            </button>
+            <button class="nav-btn" data-section="persons">
+                <i class="bi bi-people"></i> Personen
+            </button>
+            <button class="nav-btn" data-section="occasions">
+                <i class="bi bi-calendar"></i> Anlässe
+            </button>
+            <button class="nav-btn" data-section="gifts">
+                <i class="bi bi-box"></i> Geschenke
+            </button>
+        </nav>
+
+        <!-- Profil Bereich -->
+        <div class="dashboard-profile">
+            <div class="profile-dropdown">
+                <div class="profile-menu" id="profileMenuToggle">
+                    <div class="profile-avatar" id="profileAvatar">E</div>
+                    <div>
+                        <div class="profile-name" id="profileName">Elias</div>
+                        <small style="color: #7f8c8d;">Benutzer</small>
+                    </div>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="dropdown-content" id="dropdownMenu">
+                    <a href="#" id="profileSettings">
+                        <i class="bi bi-gear"></i> Einstellungen
+                    </a>
+                    <a href="#" id="profileInfo">
+                        <i class="bi bi-person-circle"></i> Profil
+                    </a>
+                    <hr style="margin: 0.5rem 0;">
+                    <button id="logoutBtn" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Abmelden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hauptinhalt -->
+    <div class="dashboard-content">
+        <div class="dashboard-welcome">
+            <h1>Willkommen zurück, <span id="welcomeName">Elias</span>! 👋</h1>
+            <p>Hier kannst du deine Geschenke und Anlässe verwalten.</p>
+        </div>
+
+        <div class="content-area" id="contentArea">
+            <div class="content-placeholder">
+                <i class="bi bi-info-circle"></i>
+                <h5>Dashboard</h5>
+                <p>Wähle einen Punkt aus der Navigation, um zu beginnen.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ import { login, isLoggedIn } from "./auth-adapter.js";
 
 // Wenn bereits eingeloggt, direkt zur App weiterleiten
 if (isLoggedIn()) {
-  window.location.href = "./index.html";
+  window.location.href = "./dashboard.html";
 }
 
 const form = document.getElementById("loginForm");
@@ -39,7 +39,7 @@ form.addEventListener("submit", async (e) => {
     }
 
     // Erfolg -> zur App weiterleiten
-    window.location.href = "./index.html";
+    window.location.href = "./dashboard.html";
   } catch (err) {
     // Unerwarteter Fehler (z.B. später bei Firebase)
     console.error(err);
