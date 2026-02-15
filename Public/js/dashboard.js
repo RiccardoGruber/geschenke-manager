@@ -1,21 +1,30 @@
 /**
  * dashboard.js
  * -------------------------------------------------------
- * Dashboard-Komponente
- * Verwaltet Navigation, Profil-Dropdown und Seitenwechsel
+ * Dashboard-Controller (Shell)
+ * Verwaltet Navigation, Profil-Dropdown und delegiert Rendering an Section-Module
+ * 
+ * Section-Module:
+ *  - dashboard-section.js: KPI Cards, Upcoming Occasions, Quick Actions
+ *  - persons-section.js: Persons List
+ *  - occasions-section.js: Occasions List
+ *  - gifts-section.js: Gifts Placeholder
  */
 
 import { isLoggedIn, getUserLabel, logout } from './auth-adapter.js';
-import { listPersons } from './person-service.js';
-import { listOccasions } from './occasion-service.js';
+import * as dashboardSection from './sections/dashboard-section.js';
+import * as personsSection from './sections/persons-section.js';
+import * as occasionsSection from './sections/occasions-section.js';
+import * as giftsSection from './sections/gifts-section.js';
 
 /**
- * Dashboard-Klasse
- * Zentrale Verwaltung der Dashboard-UI
+ * DashboardController (Shell)
+ * Lightweight router that loads sections and manages tab switching
  */
 class DashboardController {
   constructor() {
     this.currentSection = 'dashboard';
+    this.currentSectionModule = null;
     this.userLabel = getUserLabel();
     
     // DOM-Elemente cachen
@@ -30,7 +39,7 @@ class DashboardController {
     this.init();
   }
 
-  //Initialisierung
+  // Initialisierung
   init() {
     // Auth-Check
     if (!isLoggedIn()) {
@@ -44,10 +53,32 @@ class DashboardController {
     // Event-Listener registrieren
     this.registerEventListeners();
 
+    // Initial dashboard rendering
+    this.switchSection('dashboard');
+
     console.log('Dashboard initialized');
   }
 
-  //Profil aktualisieren
+  // Helper: Set page header/welcome section
+  setPageHeader(title, description) {
+    const welcomeBox = document.querySelector('.dashboard-welcome');
+    if (welcomeBox) {
+      welcomeBox.innerHTML = `
+        <h3>${title}</h3>
+        <p class="text-muted mb-0">${description}</p>
+      `;
+    }
+  }
+
+  // Reset to default welcome message
+  resetPageHeader() {
+    const welcomeBox = document.querySelector('.dashboard-welcome');
+    if (welcomeBox) {
+      welcomeBox.innerHTML = `<h1>Willkommen zurück, <span id="welcomeName">${this.userLabel.split('@')[0]}</span>!</h1>`;
+    }
+  }
+
+  // Profil aktualisieren
   updateProfile() {
     const nameDisplay = this.userLabel.split('@')[0]; // E-Mail vor @ nehmen
     const initials = nameDisplay
@@ -61,7 +92,7 @@ class DashboardController {
     document.getElementById('welcomeName').textContent = nameDisplay;
   }
 
-  //Event-Listener registrieren
+  // Event-Listener registrieren
   registerEventListeners() {
     // Profil-Dropdown toggle
     this.profileMenuToggle.addEventListener('click', () => {
@@ -92,21 +123,26 @@ class DashboardController {
     // Profil-Einstellungen
     this.profileSettings.addEventListener('click', (e) => {
       e.preventDefault();
-      this.showSection('Einstellungen', 'Profileinstellungen werden hier angezeigt.');
+      this.setPageHeader('Einstellungen', 'Profileinstellungen werden hier angezeigt.');
       this.dropdownMenu.classList.remove('show');
     });
 
     // Profil-Info
     this.profileInfo.addEventListener('click', (e) => {
       e.preventDefault();
-      this.showSection('Profil', `Email: ${this.userLabel}`);
+      this.setPageHeader('Profil', `Email: ${this.userLabel}`);
       this.dropdownMenu.classList.remove('show');
     });
   }
 
-  //Sektion wechseln
+  // Sektion wechseln
   async switchSection(section) {
     this.currentSection = section;
+
+    // Cleanup old section if exists
+    if (this.currentSectionModule && this.currentSectionModule.destroy) {
+      this.currentSectionModule.destroy();
+    }
 
     // Active-Status aktualisieren
     this.navButtons.forEach(btn => {
@@ -120,7 +156,7 @@ class DashboardController {
     await this.renderSection(section);
   }
 
-  //Sektion rendern
+  // Sektion rendern
   async renderSection(section) {
     // Loading-State anzeigen
     this.contentArea.innerHTML = `
@@ -133,14 +169,28 @@ class DashboardController {
     `;
 
     try {
+      // Context für Sections
+      const ctx = {
+        userLabel: this.userLabel,
+        setPageHeader: (title, description) => this.setPageHeader(title, description),
+        resetPageHeader: () => this.resetPageHeader(),
+        navigate: (section) => this.switchSection(section)
+      };
+
+      // Select appropriate section module
       if (section === 'dashboard') {
-        this.renderDashboard();
+        this.currentSectionModule = dashboardSection;
+        this.resetPageHeader();
+        dashboardSection.render(this.contentArea, ctx);
       } else if (section === 'persons') {
-        await this.renderPersonsList();
+        this.currentSectionModule = personsSection;
+        await personsSection.render(this.contentArea, ctx);
       } else if (section === 'occasions') {
-        await this.renderOccasionsList();
+        this.currentSectionModule = occasionsSection;
+        await occasionsSection.render(this.contentArea, ctx);
       } else if (section === 'gifts') {
-        this.renderGiftsList();
+        this.currentSectionModule = giftsSection;
+        giftsSection.render(this.contentArea, ctx);
       }
     } catch (err) {
       console.error('Fehler beim Laden der Sektion:', err);
@@ -152,156 +202,7 @@ class DashboardController {
     }
   }
 
-  //Dashboard-Übersicht
-  renderDashboard() {
-    this.contentArea.innerHTML = `
-      <div style="text-align: center;">
-        <i class="bi bi-speedometer2" style="font-size: 3rem; color: #3498db; margin-bottom: 1rem;"></i>
-        <h5>Dashboard Übersicht</h5>
-        <p class="text-muted">Wähle einen Punkt aus der Navigation, um Personen, Anlässe oder Geschenke zu verwalten.</p>
-      </div>
-    `;
-  }
-
-  //Personen-Liste laden und anzeigen
-  async renderPersonsList() {
-    const persons = await listPersons();
-
-    if (!persons.length) {
-      this.contentArea.innerHTML = `
-        <div class="text-center">
-          <i class="bi bi-people" style="font-size: 3rem; color: #9b59b6; margin-bottom: 1rem;"></i>
-          <h5>Keine Personen vorhanden</h5>
-          <p class="text-muted">Füge deine ersten Personen hinzu.</p>
-          <button class="btn btn-primary mt-3" onclick="alert('TODO: Modal für Person hinzufügen')">
-            <i class="bi bi-plus-circle"></i> Person hinzufügen
-          </button>
-        </div>
-      `;
-      return;
-    }
-
-    let html = `
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="bi bi-people"></i> Personen (${persons.length})</h5>
-        <button class="btn btn-sm btn-primary" onclick="alert('TODO: Modal für Person hinzufügen')">
-          <i class="bi bi-plus-circle"></i> Hinzufügen
-        </button>
-      </div>
-      <div class="list-group">
-    `;
-
-    persons.forEach(person => {
-      const birthday = person.birthday ? `📅 ${person.birthday}` : 'Kein Geburtstag';
-      const info = person.info || '—';
-
-      html += `
-        <div class="list-group-item">
-          <div class="d-flex w-100 justify-content-between align-items-start">
-            <div style="flex: 1;">
-              <h6 class="mb-1">
-                <i class="bi bi-person-fill" style="color: #9b59b6;"></i>
-                ${person.name}
-              </h6>
-              <p class="mb-1 small text-muted">${birthday}</p>
-              <p class="mb-0 small">Info: ${info}</p>
-            </div>
-            <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-warning" onclick="alert('TODO: Edit Person ${person.id}')">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <button type="button" class="btn btn-outline-danger" onclick="alert('TODO: Delete Person ${person.id}')">
-                <i class="bi bi-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-
-    html += `</div>`;
-    this.contentArea.innerHTML = html;
-  }
-
-  //Anlässe-Liste laden und anzeigen
-  async renderOccasionsList() {
-    const occasions = await listOccasions();
-
-    if (!occasions.length) {
-      this.contentArea.innerHTML = `
-        <div class="text-center">
-          <i class="bi bi-calendar-event" style="font-size: 3rem; color: #e74c3c; margin-bottom: 1rem;"></i>
-          <h5>Keine Anlässe vorhanden</h5>
-          <p class="text-muted">Erstelle deine ersten Anlässe.</p>
-          <button class="btn btn-primary mt-3" onclick="alert('TODO: Modal für Anlass hinzufügen')">
-            <i class="bi bi-plus-circle"></i> Anlass hinzufügen
-          </button>
-        </div>
-      `;
-      return;
-    }
-
-    let html = `
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="bi bi-calendar-event"></i> Anlässe (${occasions.length})</h5>
-        <button class="btn btn-sm btn-primary" onclick="alert('TODO: Modal für Anlass hinzufügen')">
-          <i class="bi bi-plus-circle"></i> Hinzufügen
-        </button>
-      </div>
-      <div class="list-group">
-    `;
-
-    occasions.forEach(occasion => {
-      const typeLabel = occasion.type === 'fixed' ? '🔒 Fest' : '📌 Frei';
-      const status = occasion.isActive === false ? '<span class="badge bg-secondary ms-2">Inaktiv</span>' : '';
-
-      html += `
-        <div class="list-group-item">
-          <div class="d-flex w-100 justify-content-between align-items-start">
-            <div style="flex: 1;">
-              <h6 class="mb-1">
-                <i class="bi bi-calendar2-event" style="color: #e74c3c;"></i>
-                ${occasion.name}
-              </h6>
-              <p class="mb-0 small text-muted">${typeLabel} ${status}</p>
-            </div>
-            <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-info" onclick="alert('TODO: Toggle Occasion ${occasion.id}')">
-                ${occasion.isActive === false ? '✓ Aktivieren' : '✕ Deaktivieren'}
-              </button>
-              <button type="button" class="btn btn-outline-warning" onclick="alert('TODO: Edit Occasion ${occasion.id}')">
-                <i class="bi bi-pencil"></i>
-              </button>
-              ${occasion.type !== 'fixed' ? `
-                <button type="button" class="btn btn-outline-danger" onclick="alert('TODO: Delete Occasion ${occasion.id}')">
-                  <i class="bi bi-trash"></i>
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-    });
-
-    html += `</div>`;
-    this.contentArea.innerHTML = html;
-  }
-
-  //Geschenke-Liste Placeholder
-  renderGiftsList() {
-    this.contentArea.innerHTML = `
-      <div class="text-center">
-        <i class="bi bi-gift" style="font-size: 3rem; color: #f39c12; margin-bottom: 1rem;"></i>
-        <h5>Geschenke</h5>
-        <p class="text-muted">Diese Funktion kommt bald...</p>
-        <button class="btn btn-primary mt-3" disabled>
-          <i class="bi bi-plus-circle"></i> Geschenk hinzufügen (In Arbeit)
-        </button>
-      </div>
-    `;
-  }
-
-  //Logout-Handler
+  // Logout-Handler
   async handleLogout() {
     try {
       await logout();

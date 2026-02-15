@@ -55,3 +55,1035 @@
             font-family: monospace;
             font-size: 0.9em;
         }
+
+        /* Dashboard-specific tweaks */
+        .dashboard-content {
+            padding: 1.5rem;
+        }
+
+        .card-custom {
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(18, 38, 63, 0.06);
+        }
+
+        .card-custom .badge {
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-welcome { padding: 1rem; }
+        }
+
+        /* ========================================
+           Personen-Verwaltung Styles
+           ======================================== */
+
+        .persons-manager {
+            width: 100%;
+        }
+
+        /* Tab Navigation (Mobile) */
+        .persons-tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1.5rem;
+        }
+
+        .persons-tab-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: center;
+            position: relative;
+        }
+
+        .persons-tab-btn:hover {
+            color: var(--brand-color);
+        }
+
+        .persons-tab-btn.active {
+            color: var(--brand-color);
+        }
+
+        .persons-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--brand-color);
+        }
+
+        /* Content Layout */
+        .persons-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .persons-list-container {
+            display: flex;
+            flex-direction: column;
+            height: fit-content;
+        }
+
+        .persons-form-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* List Header */
+        .persons-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .persons-list-header h5 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .persons-list-header .badge {
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        /* Search & Filter */
+        .persons-search {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .persons-search .form-control {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+        }
+
+        .persons-search .form-control:focus {
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 0.2rem rgba(47, 0, 255, 0.15);
+        }
+
+        .persons-filter-toggle {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .persons-filter-toggle .form-check-input {
+            cursor: pointer;
+            width: 1rem;
+            height: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .persons-filter-toggle .form-check-input:checked {
+            background-color: var(--brand-color);
+            border-color: var(--brand-color);
+        }
+
+        .persons-filter-toggle .form-check-label {
+            cursor: pointer;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Person List */
+        .persons-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .persons-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .persons-list::-webkit-scrollbar-thumb {
+            background-color: #dee2e6;
+            border-radius: 3px;
+        }
+
+        .persons-list::-webkit-scrollbar-thumb:hover {
+            background-color: #adb5bd;
+        }
+
+        /* Person Card */
+        .person-card {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .person-card:hover {
+            background-color: #f8f9fa;
+            transform: translateX(2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        .person-card.active {
+            border-color: var(--brand-color);
+            background-color: #f0f3ff;
+            box-shadow: 0 4px 12px rgba(47, 0, 255, 0.15);
+        }
+
+        .person-card-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .person-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--brand-color), #6f5ef7);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .person-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .person-name {
+            margin: 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .person-birthday {
+            margin: 0.25rem 0 0 0;
+            font-size: 0.8rem;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .person-info-text {
+            margin: 0.5rem 0 0 0;
+            font-size: 0.85rem;
+            color: #6c757d;
+            padding-left: 3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Empty State */
+        .persons-empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+
+        .persons-empty-state i {
+            font-size: 2.5rem;
+            color: #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        .persons-empty-state h6 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .persons-empty-state p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Form Container */
+        .persons-form-placeholder {
+            padding: 2rem;
+            text-align: center;
+            color: #6c757d;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .persons-form-placeholder i {
+            font-size: 2.5rem;
+            color: #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        .persons-form-placeholder h6 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .persons-form {
+            padding: 2rem;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border: 1px solid #e9ecef;
+        }
+
+        .persons-form h5 {
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .persons-form .form-label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .persons-form .text-danger {
+            color: #dc3545;
+        }
+
+        .persons-form .form-control {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .persons-form .form-control:focus {
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 0.2rem rgba(47, 0, 255, 0.15);
+        }
+
+        .persons-form .form-control::placeholder {
+            color: #adb5bd;
+        }
+
+        .persons-form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .persons-form-actions .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .persons-form-actions .btn-primary {
+            background-color: var(--brand-color);
+            border-color: var(--brand-color);
+        }
+
+        .persons-form-actions .btn-primary:hover {
+            background-color: #1f00cc;
+            border-color: #1f00cc;
+        }
+
+        .persons-form-actions .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .persons-form-actions .btn-outline-secondary {
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+
+        .persons-form-actions .btn-outline-secondary:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+            text-decoration: none;
+        }
+
+        .persons-form-actions .btn-outline-danger {
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            margin-left: auto;
+        }
+
+        .persons-form-actions .btn-outline-danger:hover {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            text-decoration: none;
+        }
+
+        .persons-form-actions .btn-outline-danger:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Responsive: Tablet & Mobile */
+        @media (max-width: 991.98px) {
+            .persons-content {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .persons-list-container.mobile-hidden,
+            .persons-form-container.mobile-hidden {
+                display: none !important;
+            }
+
+            .persons-form-container {
+                padding: 1.5rem;
+                background-color: #f8f9fa;
+                min-height: 400px;
+            }
+
+            .persons-list {
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .persons-tabs {
+                margin-bottom: 1rem;
+            }
+
+            .persons-tab-btn {
+                font-size: 0.85rem;
+                padding: 0.5rem 0.75rem;
+            }
+
+            .persons-list-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            .persons-list-header .btn {
+                align-self: flex-start;
+                width: 100%;
+            }
+
+            .persons-form {
+                padding: 1.5rem;
+            }
+
+            .persons-form-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .persons-form-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .persons-form-actions .btn-outline-danger {
+                margin-left: 0;
+            }
+        }
+
+        /* ========================================
+           Anlässe-Verwaltung Styles
+           ======================================== */
+
+        .occasions-manager {
+            width: 100%;
+        }
+
+        /* Tab Navigation (Mobile) */
+        .occasions-tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1.5rem;
+        }
+
+        .occasions-tab-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: center;
+            position: relative;
+        }
+
+        .occasions-tab-btn:hover {
+            color: #e74c3c;
+        }
+
+        .occasions-tab-btn.active {
+            color: #e74c3c;
+        }
+
+        .occasions-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #e74c3c;
+        }
+
+        /* Content Layout */
+        .occasions-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .occasions-list-container {
+            display: flex;
+            flex-direction: column;
+            height: fit-content;
+        }
+
+        .occasions-form-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* List Header */
+        .occasions-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .occasions-list-header h5 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #e74c3c;
+        }
+
+        .occasions-list-header .badge {
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        /* Search */
+        .occasions-search {
+            margin-bottom: 1.5rem;
+        }
+
+        .occasions-search .form-control {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+        }
+
+        .occasions-search .form-control:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.15);
+        }
+
+        /* Filters */
+        .occasions-filters {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .occasions-filters .form-select {
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .occasions-filters .form-select:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.15);
+        }
+
+        /* Occasion List */
+        .occasions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 550px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .occasions-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .occasions-list::-webkit-scrollbar-thumb {
+            background-color: #dee2e6;
+            border-radius: 3px;
+        }
+
+        .occasions-list::-webkit-scrollbar-thumb:hover {
+            background-color: #adb5bd;
+        }
+
+        /* Occasion Card */
+        .occasion-card {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .occasion-card:hover {
+            background-color: #f8f9fa;
+            transform: translateX(2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        .occasion-card.active {
+            border-color: #e74c3c;
+            background-color: #fff5f3;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.15);
+        }
+
+        .occasion-card-main {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .occasion-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .occasion-title {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .occasion-meta {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .occasion-badge-group {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .occasion-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .occasion-badge.badge-fixed {
+            background-color: #e7f3ff;
+            color: #0066cc;
+        }
+
+        .occasion-badge.badge-custom {
+            background-color: #fff4e6;
+            color: #cc6600;
+        }
+
+        .occasion-badge.badge-inactive {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+
+        .occasion-date {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .occasion-date-main {
+            font-weight: 600;
+            color: #e74c3c;
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .occasion-date-relative {
+            font-size: 0.75rem;
+            color: #6c757d;
+            white-space: nowrap;
+        }
+
+        /* Occasion Card Actions */
+        .occasion-card-actions {
+            display: flex;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .occasion-action-btn {
+            padding: 0.4rem 0.6rem;
+            border: none;
+            background-color: #f0f0f0;
+            color: #495057;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .occasion-action-btn:hover {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+
+        .occasion-toggle-btn {
+            color: #28a745;
+        }
+
+        .occasion-toggle-btn:hover {
+            background-color: #d4edda;
+        }
+
+        .occasion-delete-btn {
+            color: #dc3545;
+        }
+
+        .occasion-delete-btn:hover {
+            background-color: #f8d7da;
+        }
+
+        .occasion-action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .occasions-empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+
+        .occasions-empty-state i {
+            font-size: 2.5rem;
+            color: #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        .occasions-empty-state h6 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .occasions-empty-state p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Form Container */
+        .occasions-form-placeholder {
+            padding: 2rem;
+            text-align: center;
+            color: #6c757d;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px dashed #dee2e6;
+        }
+
+        .occasions-form-placeholder i {
+            font-size: 2.5rem;
+            color: #dee2e6;
+            margin-bottom: 1rem;
+        }
+
+        .occasions-form-placeholder h6 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .occasions-form {
+            padding: 2rem;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border: 1px solid #e9ecef;
+        }
+
+        .occasions-form h5 {
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            color: #e74c3c;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .occasions-form .form-label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .occasions-form .text-danger {
+            color: #dc3545;
+        }
+
+        .occasions-form .form-control,
+        .occasions-form .form-select {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .occasions-form .form-control:focus,
+        .occasions-form .form-select:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.15);
+        }
+
+        .occasions-form .form-control::placeholder {
+            color: #adb5bd;
+        }
+
+        .occasions-form .form-switch {
+            padding: 0;
+        }
+
+        .occasions-form .form-check-input {
+            width: 2.5rem;
+            height: 1.25rem;
+            margin-top: 0.25rem;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+
+        .occasions-form .form-check-input:checked {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .occasions-form .form-check-label {
+            cursor: pointer;
+            margin-left: 0.5rem;
+            font-weight: 500;
+        }
+
+        .occasions-form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .occasions-form-actions .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .occasions-form-actions .btn-primary {
+            background-color: #e74c3c;
+            border-color: #e74c3c;
+        }
+
+        .occasions-form-actions .btn-primary:hover {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        .occasions-form-actions .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .occasions-form-actions .btn-outline-secondary {
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+
+        .occasions-form-actions .btn-outline-secondary:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+            text-decoration: none;
+        }
+
+        /* Responsive: Tablet & Mobile */
+        @media (max-width: 991.98px) {
+            .occasions-content {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .occasions-list-container.mobile-hidden,
+            .occasions-form-container.mobile-hidden {
+                display: none !important;
+            }
+
+            .occasions-form-container {
+                padding: 1.5rem;
+                background-color: #f8f9fa;
+                min-height: 400px;
+            }
+
+            .occasions-list {
+                max-height: none;
+            }
+
+            .occasions-filters {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .occasions-tabs {
+                margin-bottom: 1rem;
+            }
+
+            .occasions-tab-btn {
+                font-size: 0.85rem;
+                padding: 0.5rem 0.75rem;
+            }
+
+            .occasions-list-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            .occasions-list-header .btn {
+                align-self: flex-start;
+                width: 100%;
+            }
+
+            .occasion-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .occasion-card-main {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .occasion-date {
+                align-self: flex-start;
+                text-align: left;
+            }
+
+            .occasions-form {
+                padding: 1.5rem;
+            }
+
+            .occasions-form-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .occasions-form-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }

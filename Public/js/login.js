@@ -6,21 +6,20 @@
  * Später kann man auth-adapter.js austauschen (ohne UI neu zu schreiben).
  */
 
-import { login, isLoggedIn } from "./auth-adapter.js";
-
-// Wenn bereits eingeloggt, direkt zur App weiterleiten
-if (isLoggedIn()) {
-  window.location.href = "./dashboard.html";
-}
+import { loginUnified, isAuthed, waitForUserOnce } from "./auth-adapter.js";
 
 const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("loginError");
 const btn = document.getElementById("loginBtn");
 
+// If already considered authed (UI or Firebase depending on flag), redirect
+if (isAuthed()) {
+  window.location.href = "./dashboard.html";
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  // UI-Feedback: Fehler ausblenden & Button deaktivieren
   errorBox.classList.add("d-none");
   btn.disabled = true;
 
@@ -29,21 +28,19 @@ form.addEventListener("submit", async (e) => {
   const remember = document.getElementById("remember").checked;
 
   try {
-    const ok = await login(email, password, remember);
-
-    if (!ok) {
-      // Falsche Credentials -> Fehlermeldung zeigen
+    const user = await loginUnified(email, password, remember);
+    if (!user) {
       errorBox.classList.remove("d-none");
       btn.disabled = false;
       return;
     }
 
-    // Erfolg -> zur App weiterleiten
+    // Success
     window.location.href = "./dashboard.html";
   } catch (err) {
-    // Unerwarteter Fehler (z.B. später bei Firebase)
-    console.error(err);
-    errorBox.classList.remove("d-none");
+    console.error('Login failed', err);
+    errorBox.textContent = 'Login fehlgeschlagen: ' + (err?.message || 'Unbekannter Fehler');
+    errorBox.classList.remove('d-none');
     btn.disabled = false;
   }
 });
