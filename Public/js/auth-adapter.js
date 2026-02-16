@@ -14,7 +14,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https:/
 import { auth } from './firebase-config.js';
 
 // Feature-Flag: morgen auf true setzen, um Firebase-Auth strikt zu verwenden
-export const USE_FIREBASE_AUTH = true; // <-- flip to true when switching to Firebase auth
+export const USE_FIREBASE_AUTH = false; // <-- flip to true when switching to Firebase auth
 
 // Schlüssel-Namen für Storage, damit alles konsistent bleibt.
 const KEY_LOGIN = "uiLoggedIn";
