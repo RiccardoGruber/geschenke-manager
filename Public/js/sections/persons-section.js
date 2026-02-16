@@ -117,6 +117,8 @@ export async function render(container, ctx) {
   // Initial renders
   renderPersonsList();
   renderForm();
+  bindFormEvents();
+
 
   // Attach event listeners
   attachEventListeners(ctx);
@@ -227,6 +229,117 @@ function renderForm() {
     </form>
   `;
 }
+function bindFormEvents() {
+  // Form Submit
+  const form = document.getElementById('personForm');
+  if (!form) return;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log("PERSON SAVE HANDLER TRIGGERED"); // Debug
+
+    const name = document.getElementById('formName').value.trim();
+    const birthday = document.getElementById('formBirthday').value;
+    const info = document.getElementById('formInfo').value.trim();
+
+    if (!name) {
+      alert('Name ist erforderlich!');
+      return;
+    }
+
+    try {
+      const userCheck = await waitForUserOnce();
+      if (!userCheck) {
+        alert('Bitte einloggen, um Personen zu speichern.');
+        window.location.href = './login.html';
+        return;
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichern...';
+
+      if (mode === 'edit' && editingId) {
+        await updatePerson(editingId, { name, birthday, info });
+      } else if (mode === 'create') {
+        await createPerson({ name, birthday, info });
+      }
+
+      allPersons = await listPersons();
+      filteredPersons = [...allPersons];
+      mode = 'none';
+      editingId = null;
+
+      renderPersonsList();
+      renderForm();
+      bindFormEvents();          // <<< WICHTIG: nach render wieder binden
+      attachPersonCardListeners();
+
+    } catch (err) {
+      console.error('Fehler beim Speichern:', err);
+      alert(`Fehler: ${err.message || err}`);
+    }
+  };
+
+  form.addEventListener('submit', handleSubmit);
+  eventListeners.push({ element: form, event: 'submit', handler: handleSubmit });
+
+  // Cancel Button
+  const cancelBtn = document.getElementById('cancelBtn');
+  if (cancelBtn) {
+    const handleCancel = (e) => {
+      e.preventDefault();
+      mode = 'none';
+      editingId = null;
+      renderForm();
+      bindFormEvents();          // <<< WICHTIG
+      renderPersonsList();
+      attachPersonCardListeners();
+    };
+    cancelBtn.addEventListener('click', handleCancel);
+    eventListeners.push({ element: cancelBtn, event: 'click', handler: handleCancel });
+  }
+
+  // Delete Button
+  const deleteBtn = document.getElementById('deleteBtn');
+  if (deleteBtn) {
+    const handleDelete = async (e) => {
+      e.preventDefault();
+      if (!confirm(`Möchtest du "${document.getElementById('formName').value}" wirklich löschen?`)) return;
+
+      try {
+        const userCheck = await waitForUserOnce();
+        if (!userCheck) {
+          alert('Bitte einloggen, um Personen zu löschen.');
+          window.location.href = './login.html';
+          return;
+        }
+
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Löschen...';
+
+        await deletePerson(editingId);
+
+        allPersons = await listPersons();
+        filteredPersons = [...allPersons];
+        mode = 'none';
+        editingId = null;
+
+        renderPersonsList();
+        renderForm();
+        bindFormEvents();        // <<< WICHTIG
+        attachPersonCardListeners();
+
+      } catch (err) {
+        console.error('Fehler beim Löschen:', err);
+        alert(`Fehler: ${err.message || err}`);
+      }
+    };
+
+    deleteBtn.addEventListener('click', handleDelete);
+    eventListeners.push({ element: deleteBtn, event: 'click', handler: handleDelete });
+  }
+}
 
 function attachEventListeners(ctx) {
   // Remove old listeners
@@ -241,6 +354,7 @@ function attachEventListeners(ctx) {
     mode = 'create';
     editingId = null;
     renderForm();
+    bindFormEvents();
     renderPersonsList();
     document.getElementById('listContainer').classList.add('mobile-hidden');
     document.getElementById('formContainer').classList.remove('mobile-hidden');
@@ -337,6 +451,8 @@ function attachEventListeners(ctx) {
 
         renderPersonsList();
         renderForm();
+        bindFormEvents();
+
         attachPersonCardListeners();
 
         btn.disabled = false;
@@ -412,8 +528,9 @@ function attachPersonCardListeners() {
         mode = 'edit';
         editingId = personId;
       renderForm();
+      bindFormEvents();
       renderPersonsList();
-      
+      attachPersonCardListeners();
       // On mobile, switch to form tab
       if (window.innerWidth < 992) {
         document.querySelectorAll('.persons-tab-btn').forEach(b => b.classList.remove('active'));
