@@ -14,7 +14,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https:/
 import { auth } from './firebase-config.js';
 
 // Feature-Flag: morgen auf true setzen, um Firebase-Auth strikt zu verwenden
-export const USE_FIREBASE_AUTH = false; // <-- flip to true when switching to Firebase auth
+export const USE_FIREBASE_AUTH = true; // <-- flip to true when switching to Firebase auth
 
 // Schlüssel-Namen für Storage, damit alles konsistent bleibt.
 const KEY_LOGIN = "uiLoggedIn";
@@ -109,11 +109,10 @@ export async function waitForUserOnce() {
   return null;
 }
 
-export async function isAuthedAsync() {
-  const u = await waitForUserOnce();
-  return !!u;
+export function isAuthed() {
+  if (USE_FIREBASE_AUTH) return !!auth.currentUser;
+  return isLoggedIn();
 }
-
 
 export function getUserLabelUnified() {
   if (USE_FIREBASE_AUTH) return auth.currentUser ? (auth.currentUser.email || auth.currentUser.uid) : '';
