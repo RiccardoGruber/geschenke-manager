@@ -12,11 +12,10 @@ const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("loginError");
 const btn = document.getElementById("loginBtn");
 
-(async () => {
-  const u = await waitForUserOnce();
-  if (u) window.location.href = "./dashboard.html";
-})();
-
+// If already considered authed (UI or Firebase depending on flag), redirect
+if (isAuthed()) {
+  window.location.href = "./dashboard.html";
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
