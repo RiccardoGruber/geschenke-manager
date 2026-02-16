@@ -11,7 +11,7 @@
  *  - gifts-section.js: Gifts Placeholder
  */
 
-import { isLoggedIn, getUserLabel, logout } from './auth-adapter.js';
+import { isAuthed, getUserLabelUnified, logoutUnified } from './auth-adapter.js';
 import * as dashboardSection from './sections/dashboard-section.js';
 import * as personsSection from './sections/persons-section.js';
 import * as occasionsSection from './sections/occasions-section.js';
@@ -25,7 +25,7 @@ class DashboardController {
   constructor() {
     this.currentSection = 'dashboard';
     this.currentSectionModule = null;
-    this.userLabel = getUserLabel();
+    this.userLabel = getUserLabelUnified();
     
     // DOM-Elemente cachen
     this.profileMenuToggle = document.getElementById('profileMenuToggle');
@@ -42,7 +42,7 @@ class DashboardController {
   // Initialisierung
   init() {
     // Auth-Check
-    if (!isLoggedIn()) {
+    if (!isAuthed()) {
       window.location.href = './login.html';
       return;
     }
@@ -205,7 +205,7 @@ class DashboardController {
   // Logout-Handler
   async handleLogout() {
     try {
-      await logout();
+      await logoutUnified();
       window.location.href = './login.html';
     } catch (err) {
       console.error('Logout Error:', err);

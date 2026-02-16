@@ -4,22 +4,20 @@
  * Ziel: Auth-Logik zentral kapseln.
  * Vorteil: Das Frontend (Login-UI, Guard, Logout) bleibt gleich,
  * selbst wenn später von "UI-Login" auf "Firebase Auth" umgestellt wird.
- *
- * Aktueller Stand: "UI-Login" (kein echter Schutz).
- * Später: login() / logout() / isLoggedIn() kann auf Firebase Auth wechseln.
  */
 
 // Firebase-Auth Ergänzungen
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { auth } from './firebase-config.js';
 
-// Feature-Flag: morgen auf true setzen, um Firebase-Auth strikt zu verwenden
-export const USE_FIREBASE_AUTH = false; // <-- flip to true when switching to Firebase auth
+export const USE_FIREBASE_AUTH = true; 
 
 // Schlüssel-Namen für Storage, damit alles konsistent bleibt.
 const KEY_LOGIN = "uiLoggedIn";
 const KEY_USER = "uiUser";
+
 /**
+ * @deprecated Use isAuthed() instead when USE_FIREBASE_AUTH=true
  * Prüft, ob laut UI-Status jemand "eingeloggt" ist.
  * (Frontend-Only, KEIN echtes Security-Feature.)
  */
@@ -28,6 +26,7 @@ export function isLoggedIn() {
 }
 
 /**
+ * @deprecated Internal function, do not use directly
  * Speichert einen UI-Login-Zustand.
  * @param {boolean} flag true = eingeloggt, false = ausgeloggt
  * @param {string} userLabel z.B. E-Mail oder Username (nur fürs UI)
@@ -39,6 +38,7 @@ export function setLoggedIn(flag, userLabel = "") {
 }
 
 /**
+ * @deprecated Use getUserLabelUnified() instead when USE_FIREBASE_AUTH=true
  * Gibt den aktuell "eingeloggten" User-Label zurück (nur UI-Anzeige).
  */
 export function getUserLabel() {
@@ -46,48 +46,43 @@ export function getUserLabel() {
 }
 
 /**
- * UI-Login: Prüft Dummy-Credentials.
- * Später ersetzt man den Inhalt dieser Funktion durch Firebase Auth:
- * signInWithEmailAndPassword(auth, email, password)
+ * @deprecated Use loginUnified() instead
+ * Legacy UI-Login mit Dummy-Credentials (nur für Fallback)
  */
 export async function login(email, password, remember = false) {
-  // Beispiel-Accounts (nur für Entwicklung). Nicht ins finale Repo als echte Passwörter.
+  // Legacy fallback - nur wenn USE_FIREBASE_AUTH=false
+  console.warn('Deprecated: login() called. Use loginUnified() instead.');
+  
+  // Minimal fallback für Entwicklung
   const allowed = [
-    { email: "tutor@example.com", password: "tutor123" },
-    { email: "demo@example.com", password: "demo123" }
+    { email: "dev@local.test", password: "dev123" }
   ];
-
+  
   const ok = allowed.some((u) => u.email === email && u.password === password);
   if (!ok) return false;
-
-  // "Remember" könnte später localStorage sein; aktuell bleibt es sessionbasiert simpel.
+  
   setLoggedIn(true, email);
   return true;
 }
 
 /**
- * UI-Logout.
- * Später: Firebase signOut(auth)
+ * @deprecated Use logoutUnified() instead
+ * Legacy UI-Logout
  */
 export async function logout() {
+  console.warn('Deprecated: logout() called. Use logoutUnified() instead.');
+  
+  // Direkte Implementierung - KEIN Aufruf von logoutUnified() um Loop zu vermeiden
   setLoggedIn(false);
 }
 
 /**
  * Firebase-spezifische Helfer
  * -------------------------------------------------------
- * Die vorhandenen UI-Funktionen bleiben erhalten (isLoggedIn/login/logout),
- * da sie aktuell das clientseitige UI-Verhalten steuern. Zusätzliche
- * Funktionen hier ermöglichen die echte Authentifizierung mit Firebase
- * ohne die bisherigen Aufrufe zu zerstören.
- */
-
-// Wartet einmalig auf den aktuellen Firebase-User (unsub danach)
-/**
  * Unified helpers that respect `USE_FIREBASE_AUTH` flag.
  * - waitForUserOnce(): wartet je nach Flag auf Firebase user oder liefert UI-Pseudo-User
  * - isAuthed(): boolean, je nach Flag
- * - getUserLabel(): lesbarer Label
+ * - getUserLabelUnified(): lesbarer Label
  * - loginUnified(): Login via UI oder Firebase
  * - logoutUnified(): Logout via UI oder Firebase
  */
@@ -136,5 +131,7 @@ export async function logoutUnified() {
     await signOut(auth);
     return;
   }
-  await logout();
+  
+  // Legacy UI logout - Direkte Implementierung
+  setLoggedIn(false);
 }
