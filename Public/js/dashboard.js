@@ -11,7 +11,7 @@
  *  - gifts-section.js: Gifts Placeholder
  */
 
-import { isAuthed, getUserLabelUnified, logoutUnified } from './auth-adapter.js';
+import { waitForUserOnce, getUserLabelUnified, logoutUnified } from './auth-adapter.js';
 import * as dashboardSection from './sections/dashboard-section.js';
 import * as personsSection from './sections/persons-section.js';
 import * as occasionsSection from './sections/occasions-section.js';
@@ -40,24 +40,22 @@ class DashboardController {
   }
 
   // Initialisierung
-  init() {
-    // Auth-Check
-    if (!isAuthed()) {
-      window.location.href = './login.html';
-      return;
-    }
-
-    // Profil aktualisieren
-    this.updateProfile();
-
-    // Event-Listener registrieren
-    this.registerEventListeners();
-
-    // Initial dashboard rendering
-    this.switchSection('dashboard');
-
-    console.log('Dashboard initialized');
+async init() {
+  const user = await waitForUserOnce();
+  if (!user) {
+    window.location.href = './login.html';
+    return;
   }
+
+  this.userLabel = getUserLabelUnified();
+
+  this.updateProfile();
+  this.registerEventListeners();
+  this.switchSection('dashboard');
+
+  console.log('Dashboard initialized');
+}
+
 
   // Helper: Set page header/welcome section
   setPageHeader(title, description) {
@@ -181,7 +179,7 @@ class DashboardController {
       if (section === 'dashboard') {
         this.currentSectionModule = dashboardSection;
         this.resetPageHeader();
-        dashboardSection.render(this.contentArea, ctx);
+        await dashboardSection.render(this.contentArea, ctx);
       } else if (section === 'persons') {
         this.currentSectionModule = personsSection;
         await personsSection.render(this.contentArea, ctx);
