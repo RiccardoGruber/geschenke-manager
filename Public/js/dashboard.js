@@ -25,7 +25,7 @@ class DashboardController {
   constructor() {
     this.currentSection = 'dashboard';
     this.currentSectionModule = null;
-    this.userLabel = getUserLabelUnified();
+    this.userLabel = user.email || user.uid;
     
     // DOM-Elemente cachen
     this.profileMenuToggle = document.getElementById('profileMenuToggle');
