@@ -109,10 +109,11 @@ export async function waitForUserOnce() {
   return null;
 }
 
-export function isAuthed() {
-  if (USE_FIREBASE_AUTH) return !!auth.currentUser;
-  return isLoggedIn();
+export async function isAuthedAsync() {
+  const u = await waitForUserOnce();
+  return !!u;
 }
+
 
 export function getUserLabelUnified() {
   if (USE_FIREBASE_AUTH) return auth.currentUser ? (auth.currentUser.email || auth.currentUser.uid) : '';
