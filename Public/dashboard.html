@@ -19,7 +19,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* Header / Navigationsbar */
         .dashboard-header {
             background: white;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -41,7 +40,6 @@
             gap: 0.5rem;
         }
 
-        /* Navigationsleiste in der Mitte */
         .dashboard-nav {
             display: flex;
             gap: 1rem;
@@ -73,7 +71,6 @@
             color: white;
         }
 
-        /* Profil-Bereich oben rechts */
         .dashboard-profile {
             display: flex;
             align-items: center;
@@ -170,7 +167,6 @@
             background-color: #fadbd8;
         }
 
-        /* Hauptinhalt */
         .dashboard-content {
             padding: 2rem;
             max-width: 1400px;
@@ -251,7 +247,6 @@
     </style>
 </head>
 <body>
-    <!-- Header mit Navigation und Profil -->
     <div class="dashboard-header">
         <div class="dashboard-logo">
             <i class="bi bi-gift"></i>
@@ -273,13 +268,12 @@
             </button>
         </nav>
 
-        <!-- Profil Bereich -->
         <div class="dashboard-profile">
             <div class="profile-dropdown">
                 <div class="profile-menu" id="profileMenuToggle">
-                    <div class="profile-avatar" id="profileAvatar">E</div>
+                    <div class="profile-avatar" id="profileAvatar"></div>
                     <div>
-                        <div class="profile-name" id="profileName">Elias</div>
+                        <div class="profile-name" id="profileName"></div>
                         <small style="color: #7f8c8d;">Benutzer</small>
                     </div>
                     <i class="bi bi-chevron-down"></i>
@@ -300,10 +294,9 @@
         </div>
     </div>
 
-    <!-- Hauptinhalt -->
     <div class="dashboard-content">
         <div class="dashboard-welcome">
-            <h1>Willkommen zurück, <span id="welcomeName">Elias</span>!</h1>
+            <h1>Willkommen zurück!</h1>
         </div>
 
         <div class="content-area" id="contentArea">

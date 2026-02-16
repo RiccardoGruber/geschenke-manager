@@ -17,8 +17,6 @@ import {
 import { listPersons as getPersonsList } from '../person-service.js';
 import { waitForUserOnce, isAuthed, USE_FIREBASE_AUTH } from '../auth-adapter.js';
 
-// DEV flag: Wenn true -> nutze Mock-Fallback automatisch (nur zu Entwicklung)
-const USE_MOCK = false;
 
 let allOccasions = [];
 let filteredOccasions = [];
@@ -83,7 +81,7 @@ export async function render(container, ctx) {
     'Verwalte wichtige Anlässe und Termine. Markiere regelmäßige Anlässe wie Geburtstage und erstelle eigene Erinnerungen.'
   );
 
-  // If not authed (UI or Firebase depending on flag), show warning and stop.
+  // If not authed. show warning and stop.
   if (!isAuthed()) {
     container.innerHTML = `
       <div class="alert alert-warning">
@@ -95,7 +93,7 @@ export async function render(container, ctx) {
     return;
   }
 
-  // Load occasions (echte Daten). Only call ensureDefaultOccasions when using real Firebase Auth
+  // Load occasions (echte Daten). 
   try {
     if (USE_FIREBASE_AUTH && isAuthed()) {
       await ensureDefaultOccasions();

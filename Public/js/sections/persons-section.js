@@ -9,14 +9,6 @@
 import { listPersons, createPerson, updatePerson, deletePerson } from '../person-service.js';
 import { waitForUserOnce, isAuthed } from '../auth-adapter.js';
 
-// DEV-Fallback: Wenn true, benutze Mock-Daten falls Firestore nicht erreichbar
-const USE_MOCK = false;
-const mockPersons = [
-  { id: 'p1', name: 'Anna Müller', birthday: '1990-05-15', info: 'Schwester', createdAt: { toDate: () => new Date('2026-01-20') } },
-  { id: 'p2', name: 'Max Mustermann', birthday: '1988-03-22', info: 'Kollege', createdAt: { toDate: () => new Date('2026-01-15') } },
-  { id: 'p3', name: 'Lisa Meier', birthday: '', info: 'Freundin', createdAt: { toDate: () => new Date('2026-01-10') } }
-];
-
 let allPersons = [];
 let filteredPersons = [];
 let editingId = null;
@@ -26,7 +18,7 @@ let eventListeners = [];
 export async function render(container, ctx) {
   ctx.setPageHeader('Personen verwalten', 'Verwalte hier alle wichtigen Personen. Du kannst neue Personen hinzufügen, bearbeiten oder löschen.');
 
-  // If not authed (UI or Firebase depending on flag), show warning and stop.
+  // If not authed, show warning and stop.
   if (!isAuthed()) {
     container.innerHTML = `
       <div class="alert alert-warning">

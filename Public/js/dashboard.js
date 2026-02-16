@@ -11,6 +11,7 @@
  *  - gifts-section.js: Gifts Placeholder
  */
 
+import "./firebase-config.js";
 import { waitForUserOnce, getUserLabelUnified, logoutUnified } from './auth-adapter.js';
 import * as dashboardSection from './sections/dashboard-section.js';
 import * as personsSection from './sections/persons-section.js';
@@ -23,7 +24,7 @@ import * as giftsSection from './sections/gifts-section.js';
  */
 class DashboardController {
   constructor() {
-    this.currentSection = 'dashboard';
+    this.currentSection = 'null';
     this.currentSectionModule = null;
     this.userLabel = getUserLabelUnified();
     
@@ -41,7 +42,9 @@ class DashboardController {
 
   // Initialisierung
 async init() {
+  console.log("init start");
   const user = await waitForUserOnce();
+  console.log("user from waitForUserOnce:", user);
   if (!user) {
     window.location.href = './login.html';
     return;
@@ -52,8 +55,6 @@ async init() {
   this.updateProfile();
   this.registerEventListeners();
   this.switchSection('dashboard');
-
-  console.log('Dashboard initialized');
 }
 
 
@@ -77,18 +78,27 @@ async init() {
   }
 
   // Profil aktualisieren
-  updateProfile() {
-    const nameDisplay = this.userLabel.split('@')[0]; // E-Mail vor @ nehmen
-    const initials = nameDisplay
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase();
+ updateProfile() {
+  const profileName = document.getElementById("profileName");
+  const profileAvatar = document.getElementById("profileAvatar");
 
-    document.getElementById('profileName').textContent = nameDisplay;
-    document.getElementById('profileAvatar').textContent = initials;
-    document.getElementById('welcomeName').textContent = nameDisplay;
+  if (!profileName || !profileAvatar) {
+    console.warn("Profile elements missing", { profileName, profileAvatar });
+    return;
   }
+
+  const nameDisplay = (this.userLabel || "User").split("@")[0];
+  const initials = nameDisplay
+    .split(" ")
+    .filter(Boolean)
+    .map(n => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  profileName.textContent = nameDisplay;
+  profileAvatar.textContent = initials;
+}
 
   // Event-Listener registrieren
   registerEventListeners() {

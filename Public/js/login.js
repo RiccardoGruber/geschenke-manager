@@ -1,9 +1,6 @@
 /**
  * login.js
- * -------------------------------------------------------
  * Steuert das Verhalten der Login-Seite.
- * Wichtig: Hier wird (noch) kein Firebase Auth verwendet.
- * Später kann man auth-adapter.js austauschen (ohne UI neu zu schreiben).
  */
 
 import { loginUnified, isAuthed, waitForUserOnce } from "./auth-adapter.js";
@@ -12,7 +9,7 @@ const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("loginError");
 const btn = document.getElementById("loginBtn");
 
-// If already considered authed (UI or Firebase depending on flag), redirect
+// If already considered authed, redirect to dashboard
 if (isAuthed()) {
   window.location.href = "./dashboard.html";
 }

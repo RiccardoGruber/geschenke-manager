@@ -138,7 +138,6 @@ function renderQuickActionsCard() {
           <i class="bi bi-gift"></i> Geschenkidee hinzufügen
         </button>
       </div>
-      <div class="small text-muted mt-3">Hinweis: Geschenkideen/ToDos werden angebunden, sobald Service-Dateien vorhanden sind.</div>
     </div>
   `;
 }
@@ -213,7 +212,7 @@ export async function render(container, ctx) {
   const welcomeBox = document.querySelector('.dashboard-welcome');
   if (welcomeBox) {
     const nameDisplay = (ctx.userLabel || '').split('@')[0] || 'User';
-    welcomeBox.innerHTML = `<h1>Willkommen zurück, <span id="welcomeName">${nameDisplay}</span>!</h1>`;
+    welcomeBox.innerHTML = `<h1>Willkommen zurück!</h1>`;
   }
 
   // Loading Skeleton
@@ -243,6 +242,10 @@ export async function render(container, ctx) {
     return;
   }
 
+  // TODO später: giftsCount / todoCount aus Services
+  const giftsCount = 0;
+  const todoCount = 0;
+
   // 2) KPIs
   const personsCount = persons.length;
 
@@ -251,10 +254,6 @@ export async function render(container, ctx) {
     .filter(o => _isWithinDays(o.date, 30));      // nächste 30 Tage
 
   const upcomingCount = upcomingOccasions30.length;
-
-  // TODO später: giftsCount / todoCount aus Services
-  const giftsCount = 0;
-  const todoCount = 0;
 
   const kpisHtml = `
     ${kpiCard('<i class="bi bi-people-fill"></i>', 'Personen', personsCount, 'primary')}
