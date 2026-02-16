@@ -1,61 +1,75 @@
 /**
  * dashboard-section.js
  * -------------------------------------------------------
- * Dashboard-Sektion
- * Zeigt KPI Cards, nächste Anlässe, Quick Actions und zuletzt hinzugefügte Items
+ * Dashboard-Sektion (REAL DATA)
+ * - KPI Cards: Persons, Upcoming Occasions (30d), Gift Ideas (TODO), ToDos (TODO)
+ * - Nächste Anlässe (nach Datum)
+ * - Zuletzt hinzugefügte Personen (nach createdAt/updatedAt)
+ * - Quick Actions navigieren in echte Sections
  */
 
-// Mock data (UI-only). TODO: replace with real service data later
-const mockPersons = [
-  { id: 'p1', name: 'Anna Müller', addedAt: '2026-01-20' },
-  { id: 'p2', name: 'Max Mustermann', addedAt: '2026-01-15' },
-  { id: 'p3', name: 'Lisa Meier', addedAt: '2026-01-10' }
-];
+import { listPersons } from '../person-service.js';
+import { listOccasions } from '../occasion-service.js';
 
-const mockOccasions = [
-  { id: 'o1', name: 'Geburtstag Anna', person: 'Anna Müller', date: _isoDateOffset(5), type: 'fixed', isActive: true },
-  { id: 'o2', name: 'Weihnachten', person: 'Familie', date: _isoDateOffset(20), type: 'fixed', isActive: true },
-  { id: 'o3', name: 'Jahrestag', person: 'Lisa Meier', date: _isoDateOffset(40), type: 'free', isActive: true }
-];
-
-const mockGifts = [
-  { id: 'g1', title: 'Buch: Clean Code', person: 'Max Mustermann', addedAt: '2026-01-18' },
-  { id: 'g2', title: 'Kaffee Abo', person: 'Anna Müller', addedAt: '2026-01-12' }
-];
-
-// --- Helper utilities ---
-
-function _isoDateOffset(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function _isWithinDays(dateStr, days) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diff = (d - now) / (1000 * 60 * 60 * 24);
-  return diff >= 0 && diff <= days;
-}
-
-function _formatDate(dateStr) {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString();
-  } catch (e) {
-    return dateStr;
+// ---------- Helpers (Timestamp/Date safe) ----------
+function _asDate(val) {
+  if (!val) return null;
+  if (typeof val === 'object' && typeof val.toDate === 'function') return val.toDate(); // Firestore Timestamp
+  if (val instanceof Date) return val;
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
   }
+  return null;
 }
 
-// --- Render functions ---
+function _formatDateShort(val) {
+  const d = _asDate(val);
+  if (!d) return '—';
+  return d.toLocaleDateString('de-DE');
+}
 
-function renderKpis() {
-  const personsCount = mockPersons.length;
-  const upcomingCount = mockOccasions.filter(o => _isWithinDays(o.date, 30)).length;
-  const giftsCount = mockGifts.length;
-  const todoCount = 3;
+function _formatDateLong(val) {
+  const d = _asDate(val);
+  if (!d) return '—';
+  return d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
 
-  const kpiCard = (icon, title, value, accent) => `
+function _daysDiffFromToday(val) {
+  const d = _asDate(val);
+  if (!d) return null;
+  const today = new Date();
+  d.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return Math.floor((d - today) / (1000 * 60 * 60 * 24));
+}
+
+function _isWithinDays(val, days) {
+  const diff = _daysDiffFromToday(val);
+  return diff !== null && diff >= 0 && diff <= days;
+}
+
+function _sortByBestDateAsc(a, b) {
+  const da = _asDate(a?.date) || new Date('9999-12-31');
+  const db = _asDate(b?.date) || new Date('9999-12-31');
+  return da - db;
+}
+
+function _sortByBestCreatedDesc(a, b) {
+  const da =
+    _asDate(a?.updatedAt) ||
+    _asDate(a?.createdAt) ||
+    new Date(0);
+  const db =
+    _asDate(b?.updatedAt) ||
+    _asDate(b?.createdAt) ||
+    new Date(0);
+  return db - da;
+}
+
+// ---------- UI Builders ----------
+function kpiCard(iconHtml, title, value, accent) {
+  return `
     <div class="col-12 col-sm-6 col-md-3">
       <div class="card card-custom p-3 h-100">
         <div class="d-flex align-items-center">
@@ -63,26 +77,14 @@ function renderKpis() {
             <div class="text-muted small">${title}</div>
             <div class="h4 mb-0">${value}</div>
           </div>
-          <div class="ms-3 display-6 text-${accent}">${icon}</div>
+          <div class="ms-3 display-6 text-${accent}">${iconHtml}</div>
         </div>
       </div>
     </div>
   `;
-
-  return `
-    ${kpiCard('<i class="bi bi-people-fill"></i>', 'Personen', personsCount, 'primary')}
-    ${kpiCard('<i class="bi bi-calendar-event"></i>', 'Anlässe (kommend)', upcomingCount, 'danger')}
-    ${kpiCard('<i class="bi bi-lightbulb-fill"></i>', 'Geschenk Ideen', giftsCount, 'warning')}
-    ${kpiCard('<i class="bi bi-list-check"></i>', 'Offen / To-Do', todoCount, 'success')}
-  `;
 }
 
-function renderUpcomingOccasions() {
-  const occ = mockOccasions
-    .filter(o => _isWithinDays(o.date, 365))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 5);
-
+function renderUpcomingOccasionsCard(occ) {
   if (!occ.length) {
     return `
       <div class="card card-custom p-3">
@@ -95,17 +97,21 @@ function renderUpcomingOccasions() {
     `;
   }
 
-  const items = occ.map(o => `
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <div>
-        <div class="fw-semibold">${o.name}</div>
-        <div class="small text-muted">${o.person} • ${o.type === 'fixed' ? 'Fest' : 'Frei'}</div>
-      </div>
-      <div>
-        <span class="badge bg-light text-dark">${_formatDate(o.date)}</span>
-      </div>
-    </li>
-  `).join('');
+  const items = occ.map(o => {
+    const typeLabel = o.type === 'fixed' ? 'Fest' : 'Frei';
+    const personLabel = (o.person && String(o.person).trim()) ? o.person : '—';
+    return `
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">${o.name || '—'}</div>
+          <div class="small text-muted">${personLabel} • ${typeLabel}</div>
+        </div>
+        <div>
+          <span class="badge bg-light text-dark">${_formatDateShort(o.date)}</span>
+        </div>
+      </li>
+    `;
+  }).join('');
 
   return `
     <div class="card card-custom p-3">
@@ -117,23 +123,27 @@ function renderUpcomingOccasions() {
   `;
 }
 
-function renderQuickActions() {
+function renderQuickActionsCard() {
   return `
     <div class="card card-custom p-3">
       <h6>Quick Actions</h6>
       <div class="d-grid gap-2 mt-3">
-        <button class="btn btn-primary" data-action="add-person"><i class="bi bi-person-plus"></i> Person hinzufügen</button>
-        <button class="btn btn-outline-primary" data-action="add-occasion"><i class="bi bi-calendar-plus"></i> Anlass anlegen</button>
-        <button class="btn btn-outline-success" data-action="add-gift"><i class="bi bi-gift"></i> Geschenkidee hinzufügen</button>
-        <button class="btn btn-outline-secondary" data-action="import-sample"><i class="bi bi-upload"></i> Import / Beispieldaten laden</button>
+        <button class="btn btn-primary" data-action="persons">
+          <i class="bi bi-person-plus"></i> Person hinzufügen
+        </button>
+        <button class="btn btn-outline-primary" data-action="occasions">
+          <i class="bi bi-calendar-plus"></i> Anlass anlegen
+        </button>
+        <button class="btn btn-outline-success" data-action="gifts">
+          <i class="bi bi-gift"></i> Geschenkidee hinzufügen
+        </button>
       </div>
-      <div class="small text-muted mt-3">Hinweis: Die Buttons sind UI-only.</div>
+      <div class="small text-muted mt-3">Hinweis: Geschenkideen/ToDos werden angebunden, sobald Service-Dateien vorhanden sind.</div>
     </div>
   `;
 }
 
-function renderRecentPersons() {
-  const persons = mockPersons.slice(0, 5);
+function renderRecentPersonsCard(persons) {
   if (!persons.length) {
     return `
       <div class="card card-custom p-3 text-center text-muted">
@@ -144,12 +154,15 @@ function renderRecentPersons() {
     `;
   }
 
-  const items = persons.map(p => `
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <div>${p.name}</div>
-      <div class="small text-muted">${p.addedAt}</div>
-    </li>
-  `).join('');
+  const items = persons.map(p => {
+    const d = _asDate(p.updatedAt) || _asDate(p.createdAt);
+    return `
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>${p.name || '—'}</div>
+        <div class="small text-muted">${d ? _formatDateLong(d) : '—'}</div>
+      </li>
+    `;
+  }).join('');
 
   return `
     <div class="card card-custom p-3">
@@ -159,105 +172,139 @@ function renderRecentPersons() {
   `;
 }
 
-function renderRecentGifts() {
-  const gifts = mockGifts.slice(0, 5);
-  if (!gifts.length) {
-    return `
-      <div class="card card-custom p-3 text-center text-muted">
-        <i class="bi bi-gift" style="font-size:2rem"></i>
-        <h6 class="mt-2">Keine Geschenkideen</h6>
-        <p class="small mb-0">Füge Geschenkideen hinzu, um sie hier anzuzeigen.</p>
-      </div>
-    `;
-  }
-
-  const items = gifts.map(g => `
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <div>${g.title}</div>
-      <div class="small text-muted">${g.addedAt}</div>
-    </li>
-  `).join('');
-
+function renderRecentGiftsCardPlaceholder() {
   return `
-    <div class="card card-custom p-3">
-      <h6 class="mb-2">Zuletzt hinzugefügte Geschenke</h6>
-      <ul class="list-group list-group-flush">${items}</ul>
+    <div class="card card-custom p-3 text-center text-muted">
+      <i class="bi bi-gift" style="font-size:2rem"></i>
+      <h6 class="mt-2">Geschenkideen</h6>
+      <p class="small mb-0">Noch kein Gift-Service angebunden. Sobald der Service angebunden ist, werden hier echte Daten gezeigt.</p>
     </div>
   `;
 }
 
-// --- Quick action event handlers ---
-let quickActionListeners = [];
+// ---------- Quick action listeners ----------
+let listeners = [];
 
-function registerQuickActionListeners(container) {
+function clearListeners() {
+  listeners.forEach(({ element, handler }) => element.removeEventListener('click', handler));
+  listeners = [];
+}
+
+function registerQuickActions(container, ctx) {
   container.querySelectorAll('[data-action]').forEach(btn => {
     const action = btn.getAttribute('data-action');
     const handler = (e) => {
       e.preventDefault();
-      switch (action) {
-        case 'add-person':
-          alert('TODO: Öffne Modal zum Hinzufügen einer Person');
-          break;
-        case 'add-occasion':
-          alert('TODO: Öffne Modal zum Anlegen eines Anlasses');
-          break;
-        case 'add-gift':
-          alert('TODO: Öffne Modal zum Hinzufügen einer Geschenkidee');
-          break;
-        case 'import-sample':
-          alert('TODO: Importiere Beispieldaten (UI-only)');
-          break;
-      }
+      // echte Navigation in deine Sections
+      if (action === 'persons') ctx.navigate('persons');
+      if (action === 'occasions') ctx.navigate('occasions');
+      if (action === 'gifts') ctx.navigate('gifts');
     };
     btn.addEventListener('click', handler);
-    quickActionListeners.push({ element: btn, handler });
+    listeners.push({ element: btn, handler });
   });
 }
 
-// --- Public API ---
+// ---------- Public API ----------
+export async function render(container, ctx) {
+  clearListeners();
 
-export function render(container, ctx) {
-  // Reset to default welcome message
+  // Welcome bleibt wie bei dir
   const welcomeBox = document.querySelector('.dashboard-welcome');
   if (welcomeBox) {
-    const nameDisplay = ctx.userLabel.split('@')[0];
+    const nameDisplay = (ctx.userLabel || '').split('@')[0] || 'User';
     welcomeBox.innerHTML = `<h1>Willkommen zurück, <span id="welcomeName">${nameDisplay}</span>!</h1>`;
   }
 
-  // Build dashboard layout
-  const kpis = renderKpis();
-  const upcoming = renderUpcomingOccasions();
-  const quick = renderQuickActions();
-  const recentPersons = renderRecentPersons();
-  const recentGifts = renderRecentGifts();
+  // Loading Skeleton
+  container.innerHTML = `
+    <div class="container-fluid">
+      <div class="text-muted">Dashboard lädt...</div>
+    </div>
+  `;
 
+  // 1) Daten laden
+  let persons = [];
+  let occasions = [];
+
+  try {
+    [persons, occasions] = await Promise.all([
+      listPersons(),
+      listOccasions()
+    ]);
+  } catch (e) {
+    console.error('Dashboard load failed:', e);
+    container.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="bi bi-exclamation-circle"></i>
+        Dashboard konnte nicht geladen werden: ${e?.message || e}
+      </div>
+    `;
+    return;
+  }
+
+  // 2) KPIs
+  const personsCount = persons.length;
+
+  const upcomingOccasions30 = occasions
+    .filter(o => (o.isActive !== false))          // aktive
+    .filter(o => _isWithinDays(o.date, 30));      // nächste 30 Tage
+
+  const upcomingCount = upcomingOccasions30.length;
+
+  // TODO später: giftsCount / todoCount aus Services
+  const giftsCount = 0;
+  const todoCount = 0;
+
+  const kpisHtml = `
+    ${kpiCard('<i class="bi bi-people-fill"></i>', 'Personen', personsCount, 'primary')}
+    ${kpiCard('<i class="bi bi-calendar-event"></i>', 'Anlässe (kommend)', upcomingCount, 'danger')}
+    ${kpiCard('<i class="bi bi-lightbulb-fill"></i>', 'Geschenk Ideen', giftsCount, 'warning')}
+    ${kpiCard('<i class="bi bi-list-check"></i>', 'Offen / To-Do', todoCount, 'success')}
+  `;
+
+  // 3) Nächste Anlässe (zeige max 5, sortiert)
+  const upcomingOccasions = occasions
+    .filter(o => o.isActive !== false)
+    .filter(o => _isWithinDays(o.date, 365)) // “kommend” – du kannst auch 90/30 machen
+    .sort(_sortByBestDateAsc)
+    .slice(0, 5);
+
+  const upcomingHtml = renderUpcomingOccasionsCard(upcomingOccasions);
+
+  // 4) Zuletzt hinzugefügte Personen (max 5)
+  const recentPersons = [...persons].sort(_sortByBestCreatedDesc).slice(0, 5);
+  const recentPersonsHtml = renderRecentPersonsCard(recentPersons);
+
+  // 5) Gifts Placeholder
+  const recentGiftsHtml = renderRecentGiftsCardPlaceholder();
+
+  // Quick Actions
+  const quickHtml = renderQuickActionsCard();
+
+  // Render Layout
   container.innerHTML = `
     <div class="container-fluid">
       <!-- Row 1: KPI Cards -->
-      <div class="row g-3 mb-4">${kpis}</div>
+      <div class="row g-3 mb-4">${kpisHtml}</div>
 
       <!-- Row 2: Upcoming / Quick Actions -->
       <div class="row g-3 mb-4">
-        <div class="col-12 col-lg-7">${upcoming}</div>
-        <div class="col-12 col-lg-5">${quick}</div>
+        <div class="col-12 col-lg-7">${upcomingHtml}</div>
+        <div class="col-12 col-lg-5">${quickHtml}</div>
       </div>
 
       <!-- Row 3: Recent Persons / Gifts -->
       <div class="row g-3">
-        <div class="col-12 col-md-6">${recentPersons}</div>
-        <div class="col-12 col-md-6">${recentGifts}</div>
+        <div class="col-12 col-md-6">${recentPersonsHtml}</div>
+        <div class="col-12 col-md-6">${recentGiftsHtml}</div>
       </div>
     </div>
   `;
 
-  // Attach quick action listeners
-  registerQuickActionListeners(container);
+  registerQuickActions(container, ctx);
 }
 
 export function destroy() {
-  // Clean up event listeners
-  quickActionListeners.forEach(({ element, handler }) => {
-    element.removeEventListener('click', handler);
-  });
-  quickActionListeners = [];
+  clearListeners();
 }
