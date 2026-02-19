@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dev Test – Geschenk-Services</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light">
+  <div class="container py-4">
+    <!-- HEADER -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h3 class="mb-0"><i class="bi bi-wrench-adjustable"></i> Dev Test – Geschenk-Services</h3>
+      <div class="d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="./login.html">
+          <i class="bi bi-box-arrow-in-right"></i> Login
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="./dashboard.html">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="alert alert-info" id="authBox">
+      <i class="bi bi-info-circle"></i> Prüfe Login...
+    </div>
+
+    <!-- PERSON / IDS -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Person auswählen & Abhängigkeiten</div>
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-5">
+            <label class="form-label fw-semibold">Person</label>
+            <select id="personSelect" class="form-select">
+              <option value="">— Personen laden… —</option>
+            </select>
+            <div class="form-text">Wähle eine Person aus, um Ideen/Geschenke zuzuweisen.</div>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Person-ID</label>
+            <input id="personId" class="form-control" placeholder="personId" readonly>
+            <div class="form-text">Wird automatisch gesetzt.</div>
+          </div>
+
+          <div class="col-12 col-lg-4 d-flex gap-2 flex-wrap">
+            <button id="btnLoadPersons" class="btn btn-outline-primary" type="button">
+              <i class="bi bi-people"></i> Personen laden
+            </button>
+            <button id="btnHasDeps" class="btn btn-outline-secondary" type="button">
+              <i class="bi bi-diagram-3"></i> Abhängigkeiten prüfen
+            </button>
+            <button id="btnDeletePerson" class="btn btn-outline-danger" type="button">
+              <i class="bi bi-trash"></i> Person löschen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATE IDEA -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Geschenkidee anlegen</div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Anlass</label>
+            <select id="occasionSelect" class="form-select"></select>
+          </div>
+
+          <div class="col-12 col-lg-2">
+            <label class="form-label fw-semibold">Typ</label>
+            <select id="ideaType" class="form-select">
+              <option value="text">Text</option>
+              <option value="link">Link</option>
+              <option value="image">Bild (URL)</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Inhalt</label>
+            <input id="ideaContent" class="form-control" placeholder="z.B. Gutschein / Link / Bild-URL">
+          </div>
+
+          <div class="col-12 col-lg-2">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="ideaStatus" class="form-select">
+              <option value="offen">offen</option>
+              <option value="besorgt">besorgt</option>
+              <option value="erledigt">erledigt</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap mt-3">
+          <button id="btnCreateIdea" class="btn btn-primary" type="button">
+            <i class="bi bi-plus-circle"></i> Geschenkidee speichern
+          </button>
+          <button id="btnListIdeas" class="btn btn-outline-primary" type="button">
+            <i class="bi bi-lightbulb"></i> Geschenkideen anzeigen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- IDEA ACTIONS -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Ideen-Aktionen</div>
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-6">
+            <label class="form-label fw-semibold">Idee auswählen</label>
+            <select id="ideaSelect" class="form-select">
+              <option value="">— erst „Geschenkideen anzeigen“ klicken —</option>
+            </select>
+          </div>
+
+          <!-- NEW: Status per Dropdown -->
+          <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Neuer Ideen-Status</label>
+            <select id="ideaStatusSelect" class="form-select">
+              <option value="offen">offen</option>
+              <option value="besorgt">besorgt</option>
+              <option value="erledigt">erledigt</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-3 d-flex gap-2 flex-wrap">
+            <button id="btnSetIdeaStatus" class="btn btn-warning" type="button">
+              <i class="bi bi-check2-circle"></i> Status setzen
+            </button>
+            <button id="btnDeleteIdea" class="btn btn-danger" type="button">
+              <i class="bi bi-trash"></i> Idee löschen
+            </button>
+            <button id="btnConvert" class="btn btn-success" type="button">
+              <i class="bi bi-arrow-repeat"></i> In Geschenk umwandeln
+            </button>
+          </div>
+        </div>
+        <div class="form-text mt-2">
+          „In Geschenk umwandeln“ übernimmt Anlass/Person und setzt die Idee auf erledigt (je nach eurer Convert-Logik).
+        </div>
+      </div>
+    </div>
+
+    <!-- GIFTS -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Geschenke</div>
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-6">
+            <label class="form-label fw-semibold">Geschenk auswählen</label>
+            <select id="giftSelect" class="form-select">
+              <option value="">— erst „Geschenke anzeigen“ klicken —</option>
+            </select>
+          </div>
+
+          <!-- NEW: Status per Dropdown -->
+          <div class="col-12 col-lg-3">
+            <label class="form-label fw-semibold">Neuer Geschenk-Status</label>
+            <select id="giftStatusSelect" class="form-select">
+              <option value="offen">offen</option>
+              <option value="besorgt">besorgt</option>
+              <option value="ueberreicht">ueberreicht</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-3 d-flex gap-2 flex-wrap">
+            <button id="btnListGifts" class="btn btn-outline-success" type="button">
+              <i class="bi bi-gift"></i> Geschenke anzeigen
+            </button>
+            <button id="btnSetGiftStatus" class="btn btn-warning" type="button">
+              <i class="bi bi-check2-circle"></i> Status setzen
+            </button>
+            <button id="btnDeleteGift" class="btn btn-danger" type="button">
+              <i class="bi bi-trash"></i> Geschenk löschen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUT TABLES -->
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="card">
+          <div class="card-header fw-semibold">Geschenkideen (Tabelle)</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle" id="ideasTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Anlass</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Inhalt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-muted">Noch keine Daten.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="form-text">Hier sieht man es „normal“ – nicht als JSON-Code.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="card">
+          <div class="card-header fw-semibold">Geschenke (Tabelle)</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle" id="giftsTable">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Anlass</th>
+                    <th>Status</th>
+                    <th>Datum</th>
+                    <th>Notiz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="6" class="text-muted">Noch keine Daten.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="form-text">Hier sieht man es „normal“ – nicht als JSON-Code.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-muted small mt-3">
+      Tipp: Falls etwas fehlschlägt, öffne die Browser-Konsole (F12) für Details.
+    </p>
+  </div>
+
+  <script type="module">
+    // Core (an deine Ordnerstruktur angepasst)
+    import "./js/firebase-config.js";
+    import { waitForUserOnce } from "./js/auth-adapter.js";
+
+    // Services (an deine Ordnerstruktur angepasst)
+    import { listPersons, deletePerson } from "./js/person-service.js";
+    import { ensureDefaultOccasions, listOccasions } from "./js/occasion-service.js";
+
+    import {
+      createGiftIdea,
+      listGiftIdeas,
+      setGiftIdeaStatus,
+      deleteGiftIdea,
+      hasGiftIdeasByPerson
+    } from "./js/gift-idea-service.js";
+
+    import {
+      listGifts,
+      setGiftStatus,
+      deleteGift,
+      hasGiftsByPerson
+    } from "./js/gift-service.js";
+
+    import { convertIdeaToGift } from "./js/gift-convert.js";
+
+    // ---------------- UI refs ----------------
+    const authBox = document.getElementById("authBox");
+
+    const personSelect = document.getElementById("personSelect");
+    const personIdInput = document.getElementById("personId");
+
+    const occasionSelect = document.getElementById("occasionSelect");
+    const ideaType = document.getElementById("ideaType");
+    const ideaContent = document.getElementById("ideaContent");
+    const ideaStatus = document.getElementById("ideaStatus");
+
+    const ideaSelect = document.getElementById("ideaSelect");
+    const giftSelect = document.getElementById("giftSelect");
+
+    // NEW dropdowns
+    const ideaStatusSelect = document.getElementById("ideaStatusSelect");
+    const giftStatusSelect = document.getElementById("giftStatusSelect");
+
+    const ideasTable = document.getElementById("ideasTable").querySelector("tbody");
+    const giftsTable = document.getElementById("giftsTable").querySelector("tbody");
+
+    function setAuthBox(type, html) {
+      authBox.className = "alert alert-" + type;
+      authBox.innerHTML = html;
+    }
+
+    async function requireLogin() {
+      const u = await waitForUserOnce();
+      if (!u) {
+        setAuthBox("warning", '<i class="bi bi-exclamation-triangle"></i> Nicht eingeloggt. Bitte zuerst einloggen.');
+        throw new Error("Not logged in");
+      }
+      setAuthBox("success", '<i class="bi bi-check-circle"></i> Eingeloggt als: <strong>' + (u.email || u.uid) + '</strong>');
+      return u;
+    }
+
+    function todayYYYYMMDD() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function clearTable(tbody, colspan) {
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-muted">Keine Daten vorhanden.</td></tr>`;
+    }
+
+    function renderIdeasTable(items) {
+      if (!items || items.length === 0) return clearTable(ideasTable, 5);
+      ideasTable.innerHTML = items.map(i => `
+        <tr>
+          <td class="text-muted">${i.id}</td>
+          <td>${i.occasionName || "—"}</td>
+          <td>${i.type || "—"}</td>
+          <td><span class="badge bg-light text-dark">${i.status || "—"}</span></td>
+          <td>${(i.content || "").toString().slice(0, 80)}</td>
+        </tr>
+      `).join("");
+    }
+
+    // UPDATED: Gifts table includes "Name" (from idea.content via sourceIdeaId)
+    function renderGiftsTable(items, ideaContentById) {
+      if (!items || items.length === 0) return clearTable(giftsTable, 6);
+
+      giftsTable.innerHTML = items.map(g => {
+        const nameFromIdea = (g.sourceIdeaId && ideaContentById && ideaContentById[g.sourceIdeaId]) ? ideaContentById[g.sourceIdeaId] : "";
+        const displayName =
+          (g.name || g.title || "").trim() ||
+          (nameFromIdea || "").trim() ||
+          "—";
+
+        return `
+          <tr>
+            <td class="text-muted">${g.id}</td>
+            <td>${String(displayName).slice(0, 60)}</td>
+            <td>${g.occasionName || "—"}</td>
+            <td><span class="badge bg-light text-dark">${g.status || "—"}</span></td>
+            <td>${g.date || "—"}</td>
+            <td>${(g.note || "").toString().slice(0, 80)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function fillSelect(select, items, getValue, getLabel, emptyLabel) {
+      select.innerHTML = "";
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = emptyLabel || "— auswählen —";
+      select.appendChild(opt0);
+
+      items.forEach(x => {
+        const opt = document.createElement("option");
+        opt.value = getValue(x);
+        opt.textContent = getLabel(x);
+        select.appendChild(opt);
+      });
+    }
+
+    async function loadOccasions() {
+      await ensureDefaultOccasions();
+      const occ = await listOccasions();
+      fillSelect(
+        occasionSelect,
+        occ,
+        o => o.id,
+        o => `${o.name || "Anlass"}${o.type ? " (" + o.type + ")" : ""}`,
+        "— Anlass auswählen —"
+      );
+      return occ;
+    }
+
+    async function loadPersons() {
+      const persons = await listPersons();
+      fillSelect(
+        personSelect,
+        persons,
+        p => p.id,
+        p => `${p.name || "—"}  •  ${p.id}`,
+        "— Person auswählen —"
+      );
+      return persons;
+    }
+
+    function getSelectedPersonId() {
+      const pid = personSelect.value || "";
+      personIdInput.value = pid;
+      return pid;
+    }
+
+    async function listIdeasForPerson(pid) {
+      const all = await listGiftIdeas();
+      const filtered = all.filter(i => i.personId === pid);
+
+      fillSelect(
+        ideaSelect,
+        filtered,
+        i => i.id,
+        i => `${i.occasionName || "Anlass"} • ${i.status || "—"} • ${String(i.content || "").slice(0, 30)}`,
+        "— Idee auswählen —"
+      );
+
+      renderIdeasTable(filtered);
+      return filtered;
+    }
+
+    // UPDATED: Gifts list also builds idea map to show "Name" from converted idea
+    async function listGiftsForPerson(pid) {
+      const [allGifts, allIdeas] = await Promise.all([listGifts(), listGiftIdeas()]);
+      const filtered = allGifts.filter(g => g.personId === pid);
+
+      const ideaContentById = {};
+      allIdeas.forEach(i => { ideaContentById[i.id] = i.content || ""; });
+
+      fillSelect(
+        giftSelect,
+        filtered,
+        g => g.id,
+        g => {
+          const nameFromIdea = (g.sourceIdeaId && ideaContentById[g.sourceIdeaId]) ? ideaContentById[g.sourceIdeaId] : "";
+          const displayName = (g.name || g.title || "").trim() || (nameFromIdea || "").trim() || "—";
+          return `${displayName.slice(0, 30)} • ${g.occasionName || "Anlass"} • ${g.status || "—"} • ${g.date || "—"}`;
+        },
+        "— Geschenk auswählen —"
+      );
+
+      renderGiftsTable(filtered, ideaContentById);
+      return filtered;
+    }
+
+    // ---------------- Events ----------------
+    document.getElementById("btnLoadPersons").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        await loadPersons();
+        await loadOccasions();
+        setAuthBox("success", authBox.innerHTML + "<br><small>Personen/Anlässe geladen.</small>");
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    personSelect.addEventListener("change", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return;
+        await listIdeasForPerson(pid);
+        await listGiftsForPerson(pid);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    document.getElementById("btnHasDeps").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+
+        const [hasIdeas, hasGifts] = await Promise.all([
+          hasGiftIdeasByPerson(pid),
+          hasGiftsByPerson(pid)
+        ]);
+
+        alert(`Abhängigkeiten:\n- Geschenkideen: ${hasIdeas ? "JA" : "NEIN"}\n- Geschenke: ${hasGifts ? "JA" : "NEIN"}`);
+      } catch (e) {
+        console.error(e);
+        alert("Fehler beim Prüfen: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnDeletePerson").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        if (!confirm("Person wirklich löschen?")) return;
+
+        const [hasIdeas, hasGifts] = await Promise.all([
+          hasGiftIdeasByPerson(pid),
+          hasGiftsByPerson(pid)
+        ]);
+
+        if (hasIdeas || hasGifts) {
+          alert("Diese Person kann nicht gelöscht werden, weil Geschenkideen oder Geschenke existieren.");
+          return;
+        }
+
+        await deletePerson(pid);
+        alert("Person gelöscht.");
+
+        await loadPersons();
+        personSelect.value = "";
+        personIdInput.value = "";
+        clearTable(ideasTable, 5);
+        clearTable(giftsTable, 6);
+        ideaSelect.innerHTML = '<option value="">— Idee auswählen —</option>';
+        giftSelect.innerHTML = '<option value="">— Geschenk auswählen —</option>';
+      } catch (e) {
+        console.error(e);
+        alert("Fehler beim Löschen: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnCreateIdea").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+
+        const occId = occasionSelect.value;
+        const occName = occasionSelect.options[occasionSelect.selectedIndex]?.textContent || "—";
+
+        const content = (ideaContent.value || "").trim();
+        if (!content) return alert("Bitte Inhalt für die Geschenkidee eingeben.");
+
+        await createGiftIdea({
+          personId: pid,
+          personName: personSelect.options[personSelect.selectedIndex]?.textContent?.split("•")[0]?.trim() || "",
+          occasionId: occId || "",
+          occasionName: occName || "",
+          type: ideaType.value,
+          content,
+          status: ideaStatus.value
+        });
+
+        ideaContent.value = "";
+        await listIdeasForPerson(pid);
+        await listGiftsForPerson(pid);
+        alert("Geschenkidee gespeichert.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnListIdeas").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        await listIdeasForPerson(pid);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    document.getElementById("btnDeleteIdea").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte zuerst eine Idee auswählen.");
+        if (!confirm("Idee wirklich löschen?")) return;
+
+        await deleteGiftIdea(id);
+        await listIdeasForPerson(pid);
+        await listGiftsForPerson(pid);
+        alert("Idee gelöscht.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    // NEW: Set idea status from dropdown (instead of toggle)
+    document.getElementById("btnSetIdeaStatus").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte zuerst eine Idee auswählen.");
+
+        const newStatus = ideaStatusSelect.value;
+        await setGiftIdeaStatus(id, newStatus);
+
+        await listIdeasForPerson(pid);
+        await listGiftsForPerson(pid);
+        alert("Ideenstatus gesetzt auf: " + newStatus);
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnConvert").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte zuerst eine Idee auswählen.");
+
+        await convertIdeaToGift(id, { date: todayYYYYMMDD(), note: "Konvertiert (Dev-Test)" });
+
+        await listIdeasForPerson(pid);
+        await listGiftsForPerson(pid);
+        alert("Idee wurde in Geschenk umgewandelt.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler beim Umwandeln: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnListGifts").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        await listGiftsForPerson(pid);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    // NEW: Set gift status from dropdown (instead of toggle)
+    document.getElementById("btnSetGiftStatus").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        const id = giftSelect.value;
+        if (!id) return alert("Bitte zuerst ein Geschenk auswählen.");
+
+        const newStatus = giftStatusSelect.value;
+        await setGiftStatus(id, newStatus);
+
+        await listGiftsForPerson(pid);
+        alert("Geschenkstatus gesetzt auf: " + newStatus);
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    document.getElementById("btnDeleteGift").addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte zuerst eine Person auswählen.");
+        const id = giftSelect.value;
+        if (!id) return alert("Bitte zuerst ein Geschenk auswählen.");
+        if (!confirm("Geschenk wirklich löschen?")) return;
+
+        await deleteGift(id);
+        await listGiftsForPerson(pid);
+        alert("Geschenk gelöscht.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    // Init
+    (async () => {
+      try {
+        await requireLogin();
+        await loadOccasions();
+        setAuthBox("success", authBox.innerHTML + "<br><small>Bereit. Klicke „Personen laden“.</small>");
+      } catch (e) {
+        // authBox wurde bereits gesetzt
+      }
+    })();
+  </script>
+</body>
+</html>
