@@ -8,6 +8,9 @@
 
 import { listPersons, createPerson, updatePerson, deletePerson } from '../person-service.js';
 import { waitForUserOnce, isAuthed } from '../auth-adapter.js';
+import { hasGiftIdeasByPerson } from '../gift-idea-service.js';
+import { hasGiftsByPerson } from '../gift-service.js';
+
 
 let allPersons = [];
 let filteredPersons = [];
@@ -309,6 +312,20 @@ function bindFormEvents() {
 
         deleteBtn.disabled = true;
         deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Löschen...';
+
+        // --- NEW: block delete if dependencies exist ---
+        const [hasIdeas, hasGifts] = await Promise.all([
+        hasGiftIdeasByPerson(editingId),
+        hasGiftsByPerson(editingId)
+        ]);
+
+        if (hasIdeas || hasGifts) {
+          alert('Diese Person kann nicht gelöscht werden, weil bereits Geschenkideen oder Geschenke existieren.');
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Löschen';
+          return;
+        }
+        // --- END NEW ---
 
         await deletePerson(editingId);
 
