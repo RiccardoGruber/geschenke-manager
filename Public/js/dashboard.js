@@ -12,7 +12,7 @@
  */
 
 import "./firebase-config.js";
-import { waitForUserOnce, getUserLabelUnified, logoutUnified } from './auth-adapter.js';
+import { isAuthed, getUserLabelUnified, logoutUnified, waitForUserOnce } from './auth-adapter.js';
 import * as dashboardSection from './sections/dashboard-section.js';
 import * as personsSection from './sections/persons-section.js';
 import * as occasionsSection from './sections/occasions-section.js';
@@ -26,7 +26,6 @@ class DashboardController {
   constructor() {
     this.currentSection = 'null';
     this.currentSectionModule = null;
-    this.userLabel = getUserLabelUnified();
     
     // DOM-Elemente cachen
     this.profileMenuToggle = document.getElementById('profileMenuToggle');
@@ -50,8 +49,6 @@ async init() {
     return;
   }
 
-  this.userLabel = getUserLabelUnified();
-
   this.updateProfile();
   this.registerEventListeners();
   this.switchSection('dashboard');
@@ -73,12 +70,9 @@ async init() {
   resetPageHeader() {
     const welcomeBox = document.querySelector('.dashboard-welcome');
     if (welcomeBox) {
-      welcomeBox.innerHTML = `<h1>Willkommen zurück, <span id="welcomeName">${this.userLabel.split('@')[0]}</span>!</h1>`;
+      welcomeBox.innerHTML = `<h1>Willkommen zurück!</h1>`;
     }
-  }
-
-  // Profil aktualisieren
- updateProfile() {
+  }updateProfile() {
   const profileName = document.getElementById("profileName");
   const profileAvatar = document.getElementById("profileAvatar");
 
@@ -198,7 +192,7 @@ async init() {
         await occasionsSection.render(this.contentArea, ctx);
       } else if (section === 'gifts') {
         this.currentSectionModule = giftsSection;
-        giftsSection.render(this.contentArea, ctx);
+        await giftsSection.render(this.contentArea, ctx);
       }
     } catch (err) {
       console.error('Fehler beim Laden der Sektion:', err);

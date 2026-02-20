@@ -30,31 +30,41 @@ const KEY_USER = "uiUser";
  * - logoutUnified(): Logout via UI oder Firebase
  */
 
-export async function waitForUserOnce() {
+export function waitForUserOnce() {
   if (USE_FIREBASE_AUTH) {
-    return new Promise((resolve) => {
-      const unsub = onAuthStateChanged(auth, (user) => {
-        unsub();
+    return new Promise(resolve => {
+      const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
         resolve(user);
       });
     });
   }
 
-  // UI-Mode: return pseudo-user when session indicates logged in
-  if (isLoggedIn()) {
-    return { uid: 'ui', email: getUserLabel() };
+  // UI-Mode
+  if (localStorage.getItem(KEY_LOGIN) === "true") {
+    return Promise.resolve({
+      uid: "ui",
+      email: localStorage.getItem(KEY_USER)
+    });
   }
-  return null;
+
+  return Promise.resolve(null);
 }
 
 export function isAuthed() {
-  if (USE_FIREBASE_AUTH) return !!auth.currentUser;
-  return isLoggedIn();
+  if (USE_FIREBASE_AUTH) {
+    return !!auth.currentUser;
+  }
+  return localStorage.getItem(KEY_LOGIN) === "true";
 }
 
 export function getUserLabelUnified() {
-  if (USE_FIREBASE_AUTH) return auth.currentUser ? (auth.currentUser.email || auth.currentUser.uid) : '';
-  return getUserLabel();
+  if (USE_FIREBASE_AUTH) {
+    return auth.currentUser
+      ? (auth.currentUser.email || auth.currentUser.uid)
+      : "";
+  }
+  return localStorage.getItem(KEY_USER) ?? "";
 }
 
 export async function loginUnified(email, password, remember = false) {
