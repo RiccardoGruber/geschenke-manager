@@ -176,12 +176,22 @@ export async function deleteGiftIdea(id) {
 }
 
 /**
- * Helper für TF-06/TF-19: Existieren Geschenkideen für Person?
+ * Helper für TF-06: Existieren Geschenkideen für Person?
  */
 export async function hasGiftIdeasByPerson(personId) {
   const pid = requireNonEmpty("personId", personId);
   const ref = await ideasColRef();
   const q = query(ref, where("personId", "==", pid), limit(1));
+  const snap = await getDocs(q);
+  return !snap.empty;
+}
+/**
+ * Helper für TF-19: Existieren Geschenkideen für Anlass?
+ */
+export async function hasGiftIdeasByOccasion(occasionId) {
+  const oid = requireNonEmpty("occasionId", occasionId);
+  const ref = await ideasColRef();
+  const q = query(ref, where("occasionId", "==", oid), limit(1));
   const snap = await getDocs(q);
   return !snap.empty;
 }
