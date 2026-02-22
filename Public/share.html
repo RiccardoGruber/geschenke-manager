@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Geschenke-Manager | Geteilte Inhalte</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light">
+  <div class="container py-4" style="max-width: 980px;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0"><i class="bi bi-share"></i> Geteilte Inhalte</h4>
+      <a class="btn btn-sm btn-outline-secondary" href="./login.html">
+        <i class="bi bi-box-arrow-in-right"></i> Login
+      </a>
+    </div>
+
+    <div id="stateBox" class="alert alert-info">
+      <i class="bi bi-info-circle"></i> Lade Inhalte…
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold" id="headerTitle">—</div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="ideasTable">
+            <thead>
+              <tr>
+                <th>Typ</th>
+                <th>Anlass</th>
+                <th>Status</th>
+                <th>Inhalt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="text-muted">Noch keine Daten.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-muted small mt-2">
+          Wenn der Link ungültig/abgelaufen ist, wird eine saubere Meldung angezeigt (TF-48).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/share.js"></script>
+</body>
+</html>
