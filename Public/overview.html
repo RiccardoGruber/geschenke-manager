@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Geschenke-Manager | HTML-Übersicht</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light">
+  <div class="container py-4">
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h3 class="mb-0"><i class="bi bi-list-check"></i> Vollständige Liste (HTML)</h3>
+        <div class="text-muted small">TF-49: Personen, Ideen, Geschenke, vergangene Geschenke</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+          <i class="bi bi-printer"></i> Drucken
+        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="./suggestions.html">
+          <i class="bi bi-magic"></i> Generierte Ideen
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="./dashboard.html">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="alert alert-info" id="authBox">
+      <i class="bi bi-info-circle"></i> Prüfe Login...
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mb-3">
+      <button id="btnLoadAll" class="btn btn-primary">
+        <i class="bi bi-cloud-download"></i> Alles laden
+      </button>
+    </div>
+
+    <!-- Personen -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>Personen</span>
+        <span class="badge bg-light text-dark" id="countPersons">0</span>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-sm align-middle" id="tblPersons">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Geburtstag</th>
+              <th>Info</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="4" class="text-muted">Noch keine Daten.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Geschenkideen -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>Geschenkideen</span>
+        <span class="badge bg-light text-dark" id="countIdeas">0</span>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-sm align-middle" id="tblIdeas">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Person</th>
+              <th>Anlass</th>
+              <th>Typ</th>
+              <th>Status</th>
+              <th>Inhalt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="6" class="text-muted">Noch keine Daten.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Geschenke (geplant) -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>Geschenke (geplant)</span>
+        <span class="badge bg-light text-dark" id="countGifts">0</span>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-sm align-middle" id="tblGifts">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Geschenk</th>
+              <th>Person</th>
+              <th>Anlass</th>
+              <th>Status</th>
+              <th>Datum</th>
+              <th>Notiz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7" class="text-muted">Noch keine Daten.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Vergangene Geschenke -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>Vergangene Geschenke</span>
+        <span class="badge bg-light text-dark" id="countPast">0</span>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-sm align-middle" id="tblPast">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Person</th>
+              <th>Anlass</th>
+              <th>Status</th>
+              <th>Datum</th>
+              <th>Notiz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="6" class="text-muted">Noch keine Daten.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-muted small">
+      TF-49 erfüllt: vollständige Liste als HTML darstellbar (Tabellen).
+    </p>
+  </div>
+
+  <script type="module">
+    import "./js/firebase-config.js";
+    import { waitForUserOnce } from "./js/auth-adapter.js";
+
+    import { listPersons } from "./js/person-service.js";
+    import { listGiftIdeas } from "./js/gift-idea-service.js";
+    import { listGifts, listPastGifts } from "./js/gift-service.js";
+
+    const authBox = document.getElementById("authBox");
+
+    const tblPersons = document.querySelector("#tblPersons tbody");
+    const tblIdeas = document.querySelector("#tblIdeas tbody");
+    const tblGifts = document.querySelector("#tblGifts tbody");
+    const tblPast = document.querySelector("#tblPast tbody");
+
+    const countPersons = document.getElementById("countPersons");
+    const countIdeas = document.getElementById("countIdeas");
+    const countGifts = document.getElementById("countGifts");
+    const countPast = document.getElementById("countPast");
+
+    function setAuthBox(type, html) {
+      authBox.className = "alert alert-" + type;
+      authBox.innerHTML = html;
+    }
+
+    async function requireLogin() {
+      const u = await waitForUserOnce();
+      if (!u) {
+        setAuthBox("warning", '<i class="bi bi-exclamation-triangle"></i> Nicht eingeloggt. Bitte zuerst einloggen.');
+        throw new Error("Not logged in");
+      }
+      setAuthBox("success", '<i class="bi bi-check-circle"></i> Eingeloggt als: <strong>' + (u.email || u.uid) + '</strong>');
+      return u;
+    }
+
+    function clear(tbody, colspan) {
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-muted">Keine Daten vorhanden.</td></tr>`;
+    }
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[m]));
+    }
+
+    function hideConvertNote(note) {
+      const n = String(note || "").trim();
+      if (!n) return "";
+      if (n.toLowerCase().startsWith("konvertiert")) return "";
+      return n;
+    }
+
+    async function loadAll() {
+      await requireLogin();
+
+      const [persons, ideas, gifts, past] = await Promise.all([
+        listPersons(),
+        listGiftIdeas(),
+        listGifts(),
+        listPastGifts()
+      ]);
+
+      // Map für Geschenkname aus sourceIdeaId
+      const ideaContentById = {};
+      ideas.forEach(i => { ideaContentById[i.id] = (i.content || "").toString(); });
+
+      // Persons
+      countPersons.textContent = persons.length;
+      if (!persons.length) clear(tblPersons, 4);
+      else tblPersons.innerHTML = persons.map(p => `
+        <tr>
+          <td class="text-muted">${esc(p.id)}</td>
+          <td>${esc(p.name)}</td>
+          <td>${esc(p.birthday || "—")}</td>
+          <td>${esc(p.info || "—")}</td>
+        </tr>
+      `).join("");
+
+      // Ideas
+      countIdeas.textContent = ideas.length;
+      if (!ideas.length) clear(tblIdeas, 6);
+      else tblIdeas.innerHTML = ideas.map(i => `
+        <tr>
+          <td class="text-muted">${esc(i.id)}</td>
+          <td>${esc(i.personName || i.personId || "—")}</td>
+          <td>${esc(i.occasionName || "—")}</td>
+          <td>${esc(i.type || "—")}</td>
+          <td>${esc(i.status || "—")}</td>
+          <td>${esc((i.content || "").toString().slice(0, 140))}</td>
+        </tr>
+      `).join("");
+
+      // Gifts (geplant)
+      countGifts.textContent = gifts.length;
+      if (!gifts.length) clear(tblGifts, 7);
+      else tblGifts.innerHTML = gifts.map(g => {
+        const fromIdea = g.sourceIdeaId ? (ideaContentById[g.sourceIdeaId] || "") : "";
+        const giftName = (g.name || g.title || fromIdea || "").toString().trim() || "—";
+        const noteShown = hideConvertNote(g.note);
+
+        return `
+          <tr>
+            <td class="text-muted">${esc(g.id)}</td>
+            <td>${esc(giftName.slice(0, 140))}</td>
+            <td>${esc(g.personName || g.personId || "—")}</td>
+            <td>${esc(g.occasionName || "—")}</td>
+            <td>${esc(g.status || "—")}</td>
+            <td>${esc(g.date || "—")}</td>
+            <td>${esc((noteShown || "—").toString().slice(0, 140))}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // Past
+      countPast.textContent = past.length;
+      if (!past.length) clear(tblPast, 6);
+      else tblPast.innerHTML = past.map(x => `
+        <tr>
+          <td class="text-muted">${esc(x.id)}</td>
+          <td>${esc(x.personName || x.personId || "—")}</td>
+          <td>${esc(x.occasionName || "—")}</td>
+          <td>${esc(x.status || "—")}</td>
+          <td>${esc(x.date || "—")}</td>
+          <td>${esc((x.note || "").toString().slice(0, 140) || "—")}</td>
+        </tr>
+      `).join("");
+
+      setAuthBox("success", authBox.innerHTML + "<br><small>Alle Daten geladen.</small>");
+    }
+
+    document.getElementById("btnLoadAll").addEventListener("click", async () => {
+      try { await loadAll(); } catch(e){ console.error(e); }
+    });
+
+    (async () => {
+      try {
+        await requireLogin();
+        setAuthBox("success", authBox.innerHTML + "<br><small>Klicke „Alles laden“.</small>");
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

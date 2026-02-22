@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Geschenke-Manager | Generierte Ideen</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</head>
+
+<body class="bg-light">
+  <div class="container py-4">
+
+    <!-- HEADER -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h3 class="mb-0"><i class="bi bi-magic"></i> Generierte Geschenkideen</h3>
+        <div class="text-muted small">TF-50/TF-51/TF-52</div>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary" href="./dev-gifts-tests.html">
+          <i class="bi bi-wrench-adjustable"></i> Dev Tests
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="./overview.html">
+          <i class="bi bi-list-check"></i> Übersicht (TF-49)
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="./dashboard.html">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="alert alert-info" id="authBox">
+      <i class="bi bi-info-circle"></i> Prüfe Login...
+    </div>
+
+    <!-- Person wählen -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">1) Person auswählen</div>
+      <div class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-lg-5">
+            <label class="form-label fw-semibold">Person</label>
+            <select id="personSelect" class="form-select">
+              <option value="">— Personen laden… —</option>
+            </select>
+          </div>
+
+          <!-- NEU: Anlass, der beim Übernehmen gespeichert wird -->
+          <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Anlass für Übernahme (TF-51)</label>
+            <select id="genOccasionSelect" class="form-select">
+              <option value="">— Anlass auswählen —</option>
+            </select>
+            <div class="form-text">Wird beim Klick auf „Übernehmen“ in die Idee gespeichert.</div>
+          </div>
+
+          <div class="col-12 col-lg-3 d-flex gap-2 flex-wrap">
+            <button id="btnLoadPersons" class="btn btn-outline-primary" type="button">
+              <i class="bi bi-people"></i> Personen laden
+            </button>
+            <button id="btnGenerate" class="btn btn-primary" type="button" disabled>
+              <i class="bi bi-lightning-charge"></i> Ideen generieren (TF-50)
+            </button>
+          </div>
+        </div>
+        <div class="form-text mt-2">
+          Die Generierung basiert auf <strong>vergangenen Geschenken</strong> und <strong>bestehenden Geschenkideen</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Generierte Ideen -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex align-items-center justify-content-between">
+        <span>2) Generierte Ideen (Liste)</span>
+        <span class="badge bg-light text-dark" id="genCount">0</span>
+      </div>
+      <div class="card-body">
+        <div id="generatedList" class="vstack gap-2">
+          <div class="text-muted">Noch keine Ideen generiert.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Übernommene Ideen (live aus Firestore) -->
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex align-items-center justify-content-between">
+        <span>3) Übernommene Geschenkideen (live)</span>
+        <span class="text-muted small">TF-51/TF-52</span>
+      </div>
+      <div class="card-body">
+
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-lg-7">
+            <label class="form-label fw-semibold">Übernommene Idee auswählen</label>
+            <select id="ideaSelect" class="form-select">
+              <option value="">— erst laden —</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-5 d-flex gap-2 flex-wrap">
+            <button id="btnReloadIdeas" class="btn btn-outline-primary" type="button" disabled>
+              <i class="bi bi-arrow-clockwise"></i> Ideen laden
+            </button>
+            <button id="btnConvert" class="btn btn-success" type="button" disabled>
+              <i class="bi bi-arrow-repeat"></i> In Geschenk umwandeln
+            </button>
+            <button id="btnDeleteIdea" class="btn btn-danger" type="button" disabled>
+              <i class="bi bi-trash"></i> Idee löschen
+            </button>
+          </div>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Anlass</label>
+            <select id="occasionSelect" class="form-select"></select>
+          </div>
+
+          <div class="col-12 col-lg-2">
+            <label class="form-label fw-semibold">Typ</label>
+            <select id="ideaType" class="form-select">
+              <option value="text">Text</option>
+              <option value="link">Link</option>
+              <option value="image">Bild (URL)</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <label class="form-label fw-semibold">Inhalt</label>
+            <input id="ideaContent" class="form-control" placeholder="z.B. Gutschein / Link / Bild-URL">
+          </div>
+
+          <div class="col-12 col-lg-2">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="ideaStatus" class="form-select">
+              <option value="offen">offen</option>
+              <option value="besorgt">besorgt</option>
+              <option value="erledigt">erledigt</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap mt-3">
+          <button id="btnUpdateIdea" class="btn btn-warning" type="button" disabled>
+            <i class="bi bi-pencil-square"></i> Idee bearbeiten (TF-52)
+          </button>
+        </div>
+
+        <div class="form-text mt-2">
+          Bearbeiten/Umwandeln gilt für <strong>übernommene</strong> Ideen (also echte GiftIdeas in Firestore).
+        </div>
+      </div>
+    </div>
+
+    <p class="text-muted small">
+      Tipp: Öffne die Konsole (F12), falls etwas nicht lädt.
+    </p>
+  </div>
+
+  <script type="module">
+    import "./js/firebase-config.js";
+    import { waitForUserOnce } from "./js/auth-adapter.js";
+
+    import { listPersons } from "./js/person-service.js";
+    import { ensureDefaultOccasions, listOccasions } from "./js/occasion-service.js";
+
+    import { listPastGifts } from "./js/gift-service.js";
+    import { createGiftIdea, listGiftIdeas, updateGiftIdea, deleteGiftIdea } from "./js/gift-idea-service.js";
+    import { convertIdeaToGift } from "./js/gift-convert.js";
+
+    import { generateIdeasForPerson } from "./js/suggestion-service.js";
+
+    // ---- UI refs ----
+    const authBox = document.getElementById("authBox");
+    const personSelect = document.getElementById("personSelect");
+    const genOccasionSelect = document.getElementById("genOccasionSelect");
+
+    const btnGenerate = document.getElementById("btnGenerate");
+    const generatedList = document.getElementById("generatedList");
+    const genCount = document.getElementById("genCount");
+
+    const ideaSelect = document.getElementById("ideaSelect");
+    const btnReloadIdeas = document.getElementById("btnReloadIdeas");
+    const btnUpdateIdea = document.getElementById("btnUpdateIdea");
+    const btnConvert = document.getElementById("btnConvert");
+    const btnDeleteIdea = document.getElementById("btnDeleteIdea");
+
+    const occasionSelect = document.getElementById("occasionSelect");
+    const ideaType = document.getElementById("ideaType");
+    const ideaContent = document.getElementById("ideaContent");
+    const ideaStatus = document.getElementById("ideaStatus");
+
+    function setAuthBox(type, html) {
+      authBox.className = "alert alert-" + type;
+      authBox.innerHTML = html;
+    }
+
+    async function requireLogin() {
+      const u = await waitForUserOnce();
+      if (!u) {
+        setAuthBox("warning", '<i class="bi bi-exclamation-triangle"></i> Nicht eingeloggt. Bitte zuerst einloggen.');
+        throw new Error("Not logged in");
+      }
+      setAuthBox("success", '<i class="bi bi-check-circle"></i> Eingeloggt als: <strong>' + (u.email || u.uid) + '</strong>');
+      return u;
+    }
+
+    function fillSelect(select, items, getValue, getLabel, emptyLabel) {
+      select.innerHTML = "";
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = emptyLabel || "— auswählen —";
+      select.appendChild(opt0);
+
+      items.forEach(x => {
+        const opt = document.createElement("option");
+        opt.value = getValue(x);
+        opt.textContent = getLabel(x);
+        select.appendChild(opt);
+      });
+    }
+
+    function getSelectedPersonId() {
+      return personSelect.value || "";
+    }
+
+    function getSelectedGenOccasion() {
+      const id = genOccasionSelect.value || "";
+      const name = genOccasionSelect.options[genOccasionSelect.selectedIndex]?.textContent || "";
+      return { id, name: (id ? name : "") };
+    }
+
+    async function loadOccasions() {
+      await ensureDefaultOccasions();
+      const occ = await listOccasions();
+
+      // Für Bearbeiten/TF-52
+      fillSelect(
+        occasionSelect,
+        occ,
+        o => o.id,
+        o => `${o.name || "Anlass"}${o.type ? " (" + o.type + ")" : ""}`,
+        "— Anlass auswählen —"
+      );
+
+      // Für Übernahme/TF-51 (NEU)
+      fillSelect(
+        genOccasionSelect,
+        occ,
+        o => o.id,
+        o => `${o.name || "Anlass"}${o.type ? " (" + o.type + ")" : ""}`,
+        "— Anlass auswählen —"
+      );
+
+      return occ;
+    }
+
+    async function loadPersonsUI() {
+      const persons = await listPersons();
+      fillSelect(
+        personSelect,
+        persons,
+        p => p.id,
+        p => `${p.name || "—"}  •  ${p.id}`,
+        "— Person auswählen —"
+      );
+      return persons;
+    }
+
+    // ----- TF-50 generation (on the fly) -----
+    function renderGenerated(items) {
+      genCount.textContent = String(items?.length || 0);
+      if (!items || items.length === 0) {
+        generatedList.innerHTML = `<div class="text-muted">Keine Vorschläge gefunden (noch zu wenig Daten).</div>`;
+        return;
+      }
+
+      generatedList.innerHTML = items.map((x, idx) => `
+        <div class="border rounded p-3 bg-white">
+          <div class="d-flex align-items-start justify-content-between gap-3">
+            <div>
+              <div class="fw-semibold">${x.title}</div>
+              <div class="text-muted small">${x.reason}</div>
+              <div class="small mt-2">
+                <span class="badge bg-light text-dark">${x.type}</span>
+                <span class="badge bg-light text-dark">${x.status}</span>
+                <span class="badge bg-light text-dark">${(getSelectedGenOccasion().name || "— Anlass")}</span>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-primary" data-idx="${idx}">
+              <i class="bi bi-download"></i> Übernehmen (TF-51)
+            </button>
+          </div>
+        </div>
+      `).join("");
+
+      // bind accept buttons
+      generatedList.querySelectorAll("button[data-idx]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          try {
+            await requireLogin();
+
+            const pid = getSelectedPersonId();
+            if (!pid) return alert("Bitte Person auswählen.");
+
+            const { id: occId, name: occName } = getSelectedGenOccasion();
+            if (!occId) return alert("Bitte oben einen Anlass für die Übernahme auswählen.");
+
+            const idx = Number(btn.dataset.idx);
+            const sug = items[idx];
+            if (!sug) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ...';
+
+            // Create real gift idea -> TF-51
+            await createGiftIdea({
+              personId: pid,
+              personName: sug.personName || "",
+              occasionId: occId,
+              occasionName: occName,
+              type: sug.type || "text",
+              content: (sug.content || sug.title || "").trim(),
+              status: "offen"
+            });
+
+            alert("Übernommen ✅ (Geschenkidee wurde gespeichert).");
+            await reloadIdeasForPerson(pid); // TF-52 starts here
+
+          } catch (e) {
+            console.error(e);
+            alert("Fehler: " + (e?.message || e));
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-download"></i> Übernehmen (TF-51)';
+          }
+        });
+      });
+    }
+
+    // ----- TF-52 manage accepted ideas -----
+    async function reloadIdeasForPerson(pid) {
+      const all = await listGiftIdeas();
+      const filtered = all.filter(i => i.personId === pid);
+
+      fillSelect(
+        ideaSelect,
+        filtered,
+        i => i.id,
+        i => `${i.occasionName || "Anlass"} • ${i.status || "—"} • ${String(i.content || "").slice(0, 30)}`,
+        "— Idee auswählen —"
+      );
+
+      btnReloadIdeas.disabled = false;
+      btnUpdateIdea.disabled = !ideaSelect.value;
+      btnConvert.disabled = !ideaSelect.value;
+      btnDeleteIdea.disabled = !ideaSelect.value;
+
+      return filtered;
+    }
+
+    ideaSelect.addEventListener("change", async () => {
+      const pid = getSelectedPersonId();
+      if (!pid) return;
+
+      const id = ideaSelect.value;
+      btnUpdateIdea.disabled = !id;
+      btnConvert.disabled = !id;
+      btnDeleteIdea.disabled = !id;
+
+      if (!id) return;
+
+      const all = await listGiftIdeas();
+      const idea = all.find(x => x.id === id);
+      if (!idea) return;
+
+      if (idea.occasionId) occasionSelect.value = idea.occasionId;
+      ideaType.value = idea.type || "text";
+      ideaContent.value = idea.content || "";
+      ideaStatus.value = idea.status || "offen";
+    });
+
+    btnReloadIdeas.addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte Person auswählen.");
+        await reloadIdeasForPerson(pid);
+        alert("Ideen geladen.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    btnUpdateIdea.addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte Idee auswählen.");
+
+        const occId = occasionSelect.value || "";
+        const occName = occasionSelect.options[occasionSelect.selectedIndex]?.textContent || "";
+
+        const patch = {
+          occasionId: occId,
+          occasionName: occName,
+          type: ideaType.value,
+          content: (ideaContent.value || "").trim(),
+          status: ideaStatus.value
+        };
+
+        await updateGiftIdea(id, patch);
+        await reloadIdeasForPerson(pid);
+        alert("Idee aktualisiert (TF-52).");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    btnDeleteIdea.addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte Idee auswählen.");
+        if (!confirm("Idee wirklich löschen?")) return;
+
+        await deleteGiftIdea(id);
+        await reloadIdeasForPerson(pid);
+        alert("Idee gelöscht.");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    btnConvert.addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte Person auswählen.");
+        const id = ideaSelect.value;
+        if (!id) return alert("Bitte Idee auswählen.");
+
+        // FIX: Kein "Konvertiert (...)" mehr als Notiz setzen
+        await convertIdeaToGift(id);
+
+        await reloadIdeasForPerson(pid);
+        alert("Idee in Geschenk umgewandelt ✅");
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    // ----- generate button -----
+    btnGenerate.addEventListener("click", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return alert("Bitte Person auswählen.");
+
+        const [past, ideas] = await Promise.all([
+          listPastGifts(),
+          listGiftIdeas()
+        ]);
+
+        const persons = await listPersons();
+        const person = persons.find(p => p.id === pid);
+
+        const suggestions = generateIdeasForPerson({
+          personId: pid,
+          personName: person?.name || "",
+          pastGifts: past.filter(x => x.personId === pid),
+          existingIdeas: ideas.filter(x => x.personId === pid)
+        });
+
+        renderGenerated(suggestions);
+      } catch (e) {
+        console.error(e);
+        alert("Fehler: " + (e?.message || e));
+      }
+    });
+
+    // init
+    (async () => {
+      try {
+        await requireLogin();
+        await loadOccasions();
+        await loadPersonsUI();
+        btnGenerate.disabled = false;
+        btnReloadIdeas.disabled = false;
+        setAuthBox("success", authBox.innerHTML + "<br><small>Bereit.</small>");
+      } catch (e) {}
+    })();
+
+    // when person changes, reload ideas for TF-52
+    personSelect.addEventListener("change", async () => {
+      try {
+        await requireLogin();
+        const pid = getSelectedPersonId();
+        if (!pid) return;
+        await reloadIdeasForPerson(pid);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  </script>
+</body>
+</html>
