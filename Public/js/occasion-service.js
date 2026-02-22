@@ -150,12 +150,25 @@ export async function updateOccasion(id, { name, date, person, type, info, isAct
 }
 
 
+import { hasGiftIdeasByOccasion } from "./gift-idea-service.js";
+import { hasGiftsByOccasion } from "./gift-service.js";
+
 /**
- * Anlass löschen
- * Hinweis: Optional später Systemverhalten definieren, wenn verknüpfte Geschenkideen existieren.
+ * Anlass löschen (TF-19)
+ * - wenn Zuordnungen existieren -> löschen verhindern
  */
 export async function deleteOccasion(id) {
   if (!id) throw new Error("ID fehlt.");
+
+  // Abhängigkeiten prüfen
+  const [hasIdeas, hasGifts] = await Promise.all([
+    hasGiftIdeasByOccasion(id),
+    hasGiftsByOccasion(id)
+  ]);
+
+  if (hasIdeas || hasGifts) {
+    throw new Error("Anlass kann nicht gelöscht werden, weil noch Geschenkideen oder Geschenke zugeordnet sind.");
+  }
 
   const uid = await getUidOrThrow();
   const ref = doc(db, "users", uid, "occasions", id);
