@@ -1,6 +1,16 @@
 :root {
-            --primary-bg: #f8f9fa;
-            --brand-color: #2f00ff;
+            --primary-bg: #e8eaed;
+            --card-bg: #f5f5f7;
+            --card-border: #d1d5db;
+            --brand-color: #4a5568;
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --border-color: #cbd5e0;
+            --hover-bg: #edf2f7;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.15);
         }
 
         body {
@@ -9,11 +19,13 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            color: var(--text-primary);
         }
 
         .navbar {
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            background-color: #fff !important;
+            box-shadow: var(--shadow-sm);
+            background-color: #ffffff !important;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .brand-text {
@@ -36,15 +48,16 @@
         }
         
         .card-custom {
-            border: none;
+            border: 1px solid var(--card-border);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-            transition: transform 0.2s;
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
         }
 
         .card-custom:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow-md);
         }
 
         .code-snippet {
@@ -61,13 +74,21 @@
             padding: 1.5rem;
         }
 
-        .card-custom {
-            border-radius: 12px;
-            box-shadow: 0 6px 18px rgba(18, 38, 63, 0.06);
-        }
-
         .card-custom .badge {
             font-weight: 600;
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: #ffffff;
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.15);
         }
 
         @media (max-width: 768px) {
@@ -131,6 +152,12 @@
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
             align-items: start;
+        }
+        .persons-content.expanded {
+            grid-template-columns: 1fr;
+        }
+        .persons-content.expanded .persons-form-container {
+            order: 2;
         }
 
         .persons-list-container {
@@ -1087,3 +1114,538 @@
                 justify-content: center;
             }
         }
+/* ========================================
+   GIFTS SECTION - Neue UI-Struktur
+   ======================================== */
+
+/* Geschenk-Primärtitel */
+.gift-primary-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+/* Strukturierte Meta-Liste */
+.gift-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gift-meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.gift-meta-item i {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.gift-meta-item .fw-semibold {
+  min-width: 70px;
+  color: var(--text-secondary);
+}
+
+/* Karten-Styling mit neuem Farbschema */
+.gift-card, .gift-idea-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.gift-card:hover, .gift-idea-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-color);
+}
+
+.gift-card .card-body, .gift-idea-card .card-body {
+  padding: 1.5rem;
+}
+
+.gift-idea-card {
+  border-left: 4px solid #f59e0b;
+}
+
+/* Gift Idea Content */
+.gift-idea-content {
+  background-color: #ffffff;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  min-height: 60px;
+}
+
+.gift-idea-content p {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Person cards (similar to gift-idea style) */
+.person-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  padding: 0.75rem;
+}
+.person-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-color);
+}
+.person-card.active {
+  border-color: var(--brand-color);
+  background-color: #ffffff;
+}
+.person-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.person-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--brand-color);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.person-badges {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.gift-link {
+  color: #3b82f6 !important;
+  word-break: break-all;
+}
+
+.gift-link:hover {
+  text-decoration: underline !important;
+}
+
+.gift-image-preview {
+  background-color: var(--hover-bg);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.gift-image-preview img {
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Status Badges mit besserem Kontrast */
+.badge {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.badge.bg-warning {
+  background-color: #f59e0b !important;
+  color: #78350f !important;
+}
+
+.badge.bg-info {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+.badge.bg-success {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+/* Tabs mit besserem Kontrast */
+#giftsTabs {
+  border-bottom: 2px solid var(--border-color);
+}
+
+#giftsTabs .nav-link {
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+#giftsTabs .nav-link:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+}
+
+#giftsTabs .nav-link.active {
+  color: var(--brand-color);
+  border-bottom-color: var(--brand-color);
+  background-color: transparent;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gift-primary-title {
+    font-size: 1.25rem;
+  }
+  
+  .gift-meta-item {
+    font-size: 0.875rem;
+  }
+  
+  #giftsTabs .nav-link {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ========================================
+   OCCASIONS SECTION - Neue Styles
+   ======================================== */
+
+.occasion-primary-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.occasion-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.occasion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-color);
+}
+
+.occasion-card-fixed {
+  border-left: 4px solid #3b82f6;
+}
+
+.occasion-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.occasion-meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.occasion-meta-item i {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.occasion-meta-item .fw-semibold {
+  min-width: 90px;
+  color: var(--text-secondary);
+}
+
+/* ========================================
+   PERSONS SECTION - Neue Styles
+   ======================================== */
+
+.person-primary-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.person-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.person-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-color);
+}
+
+.person-avatar-large {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.person-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.person-meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.person-meta-item i {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.person-meta-item .fw-semibold {
+  min-width: 90px;
+  color: var(--text-secondary);
+}
+
+/* ========================================
+   DASHBOARD - Verbesserte KPI Cards
+   ======================================== */
+
+.dashboard-kpi-card {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.dashboard-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-kpi-card .card-body {
+  padding: 1.5rem;
+}
+
+.kpi-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.kpi-icon {
+  font-size: 2.5rem;
+  opacity: 0.8;
+  margin-left: 1rem;
+}
+
+.kpi-icon-primary {
+  color: #3b82f6;
+}
+
+.kpi-icon-danger {
+  color: #ef4444;
+}
+
+.kpi-icon-warning {
+  color: #f59e0b;
+}
+
+.kpi-icon-success {
+  color: #10b981;
+}
+
+/* Upcoming Occasions Card */
+.card-custom {
+  border: 1px solid var(--card-border);
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-custom:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ========================================
+   RESPONSIVE ANPASSUNGEN
+   ======================================== */
+
+@media (max-width: 768px) {
+  .occasion-primary-title,
+  .person-primary-title {
+    font-size: 1.2rem;
+  }
+  
+  .person-avatar-large {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+  
+  .kpi-value {
+    font-size: 1.75rem;
+  }
+  
+  .kpi-icon {
+    font-size: 2rem;
+  }
+  
+  .occasion-meta-item,
+  .person-meta-item {
+    font-size: 0.875rem;
+  }
+  
+  .occasion-meta-item .fw-semibold,
+  .person-meta-item .fw-semibold {
+    min-width: 80px;
+  }
+}
+
+/* ========================================
+   ALLGEMEINE VERBESSERUNGEN
+   ======================================== */
+
+/* Buttons */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Cards allgemein */
+.card {
+  border: 1px solid var(--card-border);
+  background-color: var(--card-bg);
+}
+
+.card-header {
+  background-color: var(--hover-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Badges */
+.badge.bg-primary {
+  background-color: #3b82f6 !important;
+}
+
+.badge.bg-success {
+  background-color: #10b981 !important;
+}
+
+.badge.bg-secondary {
+  background-color: #6b7280 !important;
+}
+
+.badge.bg-light {
+  background-color: var(--hover-bg) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+}
+
+/* Text Colors */
+.text-primary {
+  color: #3b82f6 !important;
+}
+
+.text-success {
+  color: #10b981 !important;
+}
+
+.text-danger {
+  color: #ef4444 !important;
+}
+
+.text-warning {
+  color: #f59e0b !important;
+}
+
+.text-info {
+  color: #3b82f6 !important;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* ========== Dashboard Grid Layout ========== */
+.dashboard-section {
+  margin-top: 1.5rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 992px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dashboard-card {
+  display: flex;
+}
+
+.dashboard-card > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dashboard-card .card-custom {
+  height: 100%;
+}
+
+
+.dashboard-card.span-full {
+  grid-column: 1 / -1;
+}
+
+/* reminder highlight */
+.next-item.reminder-item {
+  background-color: var(--hover-bg);
+}
+
+/* ========== End Dashboard Grid ========== */
