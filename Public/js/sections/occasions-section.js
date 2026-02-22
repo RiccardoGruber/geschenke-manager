@@ -692,8 +692,18 @@ function attachOccasionCardListeners() {
 
         } catch (err) {
           console.error('Fehler beim Löschen:', err);
-          alert(`Fehler: ${err.message || err}`);
-        } finally {
+
+          if (err?.code === "OCCASION_HAS_DEPENDENCIES") {
+            alert(
+              `❌ "${occasion.name}" kann nicht gelöscht werden.\n\n` +
+              `Grund: Es existieren noch Geschenkideen oder Geschenke, die diesen Anlass verwenden.\n` +
+              `Bitte lösche/ändere zuerst die Zuordnungen.`
+              );
+              return;
+             }
+
+            alert(`Fehler: ${err?.message || err}`);
+          } finally {
           deleteBtn.disabled = false;
           deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
         }
