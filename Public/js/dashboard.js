@@ -1,107 +1,109 @@
 /**
  * dashboard.js
  * -------------------------------------------------------
- * Dashboard-Controller (Shell)
- * Verwaltet Navigation, Profil-Dropdown und delegiert Rendering an Section-Module
- * 
- * Section-Module:
- *  - dashboard-section.js: KPI Cards, Upcoming Occasions, Quick Actions
- *  - persons-section.js: Persons List
- *  - occasions-section.js: Occasions List
- *  - gifts-section.js: Gifts Placeholder
  */
 
 import "./firebase-config.js";
 import { isAuthed, getUserLabelUnified, logoutUnified, waitForUserOnce } from './auth-adapter.js';
 import * as dashboardSection from './sections/dashboard-section.js';
-import * as personsSection from './sections/persons-section.js';
+import * as personsSection   from './sections/persons-section.js';
 import * as occasionsSection from './sections/occasions-section.js';
-import * as giftsSection from './sections/gifts-section.js';
+import * as giftsSection     from './sections/gifts-section.js';
+import * as settingsSection  from './sections/settings-section.js';
 
-/**
- * DashboardController (Shell)
- * Lightweight router that loads sections and manages tab switching
- */
+// Section-Map für sauberes Routing ohne If-Kette
+const SECTIONS = {
+  dashboard: dashboardSection,
+  persons:   personsSection,
+  occasions: occasionsSection,
+  gifts:     giftsSection,
+  settings:  settingsSection,
+};
+
 class DashboardController {
   constructor() {
-    this.currentSection = 'null';
+    this.currentSection       = null;
     this.currentSectionModule = null;
-    
-    // DOM-Elemente cachen
+    this.currentParams        = {};
+
+    // DOM-Referenzen cachen
     this.profileMenuToggle = document.getElementById('profileMenuToggle');
-    this.dropdownMenu = document.getElementById('dropdownMenu');
-    this.navButtons = document.querySelectorAll('.nav-btn');
-    this.contentArea = document.getElementById('contentArea');
-    this.logoutBtn = document.getElementById('logoutBtn');
-    this.profileSettings = document.getElementById('profileSettings');
-    this.profileInfo = document.getElementById('profileInfo');
+    this.dropdownMenu      = document.getElementById('dropdownMenu');
+    this.navButtons        = document.querySelectorAll('.nav-btn');
+    this.contentArea       = document.getElementById('contentArea');
+    this.logoutBtn         = document.getElementById('logoutBtn');
+    this.profileSettings   = document.getElementById('profileSettings');
 
     this.init();
   }
 
-  // Initialisierung
-async init() {
-  console.log("init start");
-  const user = await waitForUserOnce();
-  console.log("user from waitForUserOnce:", user);
-  if (!user) {
-    window.location.href = './login.html';
-    return;
+  async init() {
+    const user = await waitForUserOnce();
+    if (!user) {
+      window.location.href = './login.html';
+      return;
+    }
+
+    this.updateProfile();
+    this.registerEventListeners();
+
+    const startSection = localStorage.getItem('defaultSection') || 'dashboard';
+    this.switchSection(startSection);
   }
 
-  this.updateProfile();
-  this.registerEventListeners();
-  this.switchSection('dashboard');
-}
+  // ---- Header ----
 
-
-  // Helper: Set page header/welcome section
   setPageHeader(title, description) {
     const welcomeBox = document.querySelector('.dashboard-welcome');
-    if (welcomeBox) {
-      welcomeBox.innerHTML = `
-        <h3>${title}</h3>
-        <p class="text-muted mb-0">${description}</p>
-      `;
-    }
+    if (!welcomeBox) return;
+    welcomeBox.innerHTML = `
+      <h3>${title}</h3>
+      <p class="text-muted mb-0">${description}</p>
+    `;
   }
 
-  // Reset to default welcome message
   resetPageHeader() {
     const welcomeBox = document.querySelector('.dashboard-welcome');
-    if (welcomeBox) {
-      welcomeBox.innerHTML = `<h1>Willkommen zurück!</h1>`;
-    }
-  }updateProfile() {
-  const profileName = document.getElementById("profileName");
-  const profileAvatar = document.getElementById("profileAvatar");
-
-  if (!profileName || !profileAvatar) {
-    console.warn("Profile elements missing", { profileName, profileAvatar });
-    return;
+    if (!welcomeBox) return;
+    welcomeBox.innerHTML = `<h1>Willkommen zurück!</h1>`;
   }
 
-  const nameDisplay = (this.userLabel || "User").split("@")[0];
-  const initials = nameDisplay
-    .split(" ")
-    .filter(Boolean)
-    .map(n => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  // ---- Profile ----
 
-  profileName.textContent = nameDisplay;
-  profileAvatar.textContent = initials;
-}
+  updateProfile() {
+    const profileName   = document.getElementById("profileName");
+    const profileAvatar = document.getElementById("profileAvatar");
 
-  // Event-Listener registrieren
+    if (!profileName || !profileAvatar) {
+      console.warn("Profile elements missing", { profileName, profileAvatar });
+      return;
+    }
+
+    const stored      = localStorage.getItem('displayName');
+    const fallback    = (getUserLabelUnified() || "User").split("@")[0] || 'Benutzer';
+    const nameDisplay = (stored !== null && stored !== '') ? stored : fallback;
+
+    const initials = nameDisplay
+      .split(" ")
+      .filter(Boolean)
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+
+    profileName.textContent   = nameDisplay;
+    profileAvatar.textContent = initials;
+  }
+
+  // ---- Events ----
+
   registerEventListeners() {
     // Profil-Dropdown toggle
     this.profileMenuToggle.addEventListener('click', () => {
       this.dropdownMenu.classList.toggle('show');
     });
 
-    // Dropdown schließen wenn außerhalb geklickt wird
+    // Dropdown schließen bei Klick außerhalb
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.profile-dropdown')) {
         this.dropdownMenu.classList.remove('show');
@@ -111,8 +113,7 @@ async init() {
     // Navigation
     this.navButtons.forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const section = e.currentTarget.dataset.section;
-        await this.switchSection(section);
+        await this.switchSection(e.currentTarget.dataset.section);
       });
     });
 
@@ -125,44 +126,31 @@ async init() {
     // Profil-Einstellungen
     this.profileSettings.addEventListener('click', (e) => {
       e.preventDefault();
-      this.setPageHeader('Einstellungen', 'Profileinstellungen werden hier angezeigt.');
       this.dropdownMenu.classList.remove('show');
-    });
-
-    // Profil-Info
-    this.profileInfo.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.setPageHeader('Profil', `Email: ${this.userLabel}`);
-      this.dropdownMenu.classList.remove('show');
+      this.switchSection('settings');
     });
   }
 
-  // Sektion wechseln
-  async switchSection(section) {
-    this.currentSection = section;
+  // ---- Navigation ----
 
-    // Cleanup old section if exists
-    if (this.currentSectionModule && this.currentSectionModule.destroy) {
+  async switchSection(section, params = {}) {
+    this.currentSection = section;
+    this.currentParams  = params || {};
+
+    if (this.currentSectionModule?.destroy) {
       this.currentSectionModule.destroy();
     }
 
-    // Active-Status aktualisieren
     this.navButtons.forEach(btn => {
-      btn.classList.remove('active');
-      if (btn.dataset.section === section) {
-        btn.classList.add('active');
-      }
+      btn.classList.toggle('active', btn.dataset.section === section);
     });
 
-    // Inhalt anzeigen
     await this.renderSection(section);
   }
 
-  // Sektion rendern
   async renderSection(section) {
-    // Loading-State anzeigen
     this.contentArea.innerHTML = `
-      <div style="text-align: center;">
+      <div class="text-center">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Wird geladen...</span>
         </div>
@@ -170,30 +158,23 @@ async init() {
       </div>
     `;
 
-    try {
-      // Context für Sections
-      const ctx = {
-        userLabel: this.userLabel,
-        setPageHeader: (title, description) => this.setPageHeader(title, description),
-        resetPageHeader: () => this.resetPageHeader(),
-        navigate: (section) => this.switchSection(section)
-      };
+    const ctx = {
+      setPageHeader:  (title, description) => this.setPageHeader(title, description),
+      resetPageHeader: () => this.resetPageHeader(),
+      navigate:       (sec, params) => this.switchSection(sec, params),
+      params:         this.currentParams || {},
+      updateProfile:  () => this.updateProfile(),
+    };
 
-      // Select appropriate section module
-      if (section === 'dashboard') {
-        this.currentSectionModule = dashboardSection;
-        this.resetPageHeader();
-        await dashboardSection.render(this.contentArea, ctx);
-      } else if (section === 'persons') {
-        this.currentSectionModule = personsSection;
-        await personsSection.render(this.contentArea, ctx);
-      } else if (section === 'occasions') {
-        this.currentSectionModule = occasionsSection;
-        await occasionsSection.render(this.contentArea, ctx);
-      } else if (section === 'gifts') {
-        this.currentSectionModule = giftsSection;
-        await giftsSection.render(this.contentArea, ctx);
-      }
+    const module = SECTIONS[section];
+    if (!module) return;
+
+    try {
+      this.currentSectionModule = module;
+
+      if (section === 'dashboard') this.resetPageHeader();
+
+      await module.render(this.contentArea, ctx);
     } catch (err) {
       console.error('Fehler beim Laden der Sektion:', err);
       this.contentArea.innerHTML = `
@@ -204,7 +185,8 @@ async init() {
     }
   }
 
-  // Logout-Handler
+  // ---- Logout ----
+
   async handleLogout() {
     try {
       await logoutUnified();
@@ -216,7 +198,6 @@ async init() {
   }
 }
 
-// Dashboard initialisieren wenn Seite geladen ist
 document.addEventListener('DOMContentLoaded', () => {
   new DashboardController();
 });
