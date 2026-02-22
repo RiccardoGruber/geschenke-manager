@@ -131,6 +131,7 @@ export async function createGift({
     personName: pname,
     occasionId: normalizeString(occasionId),
     occasionName: normalizeString(occasionName),
+    giftName: normalizeString(giftName),
     date: normalizeString(date),
     note: normalizeString(note),
     status,
@@ -188,6 +189,7 @@ export async function updateGift(id, patch = {}) {
   if (patch.personName !== undefined) out.personName = requireNonEmpty("personName", patch.personName);
   if (patch.occasionId !== undefined) out.occasionId = normalizeString(patch.occasionId);
   if (patch.occasionName !== undefined) out.occasionName = normalizeString(patch.occasionName);
+  if (patch.giftName !== undefined) out.giftName = normalizeString(patch.giftName);
 
   if (patch.date !== undefined) {
     if (!isValidDateYYYYMMDD(patch.date)) throw new Error("Ungültiges Datum (YYYY-MM-DD).");
