@@ -30,6 +30,7 @@ export async function convertIdeaToGift(ideaId, { date = todayYYYYMMDD(), note =
     personName: idea.personName,
     occasionId: idea.occasionId || "",
     occasionName: idea.occasionName || "",
+    giftName: idea.giftName || "",
     date,
     note: note || (idea.type === "text" ? idea.content : ""),
     status: "offen",

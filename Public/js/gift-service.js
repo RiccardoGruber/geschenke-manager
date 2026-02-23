@@ -111,6 +111,7 @@ export async function createGift({
   personName,
   occasionId = "",
   occasionName = "",
+  giftName = "",
   date,
   note = "",
   status = "offen",
