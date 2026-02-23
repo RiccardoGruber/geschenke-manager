@@ -5,7 +5,7 @@
  * Tabs: "Geschenke" (geplant) | "Geschenkideen"
  */
 
-import { listGifts, createGift, updateGift, deleteGift }               from '../gift-service.js';
+import { listGifts, createGift, updateGift, deleteGift, listPastGifts } from '../gift-service.js';
 import { listGiftIdeas, createGiftIdea, updateGiftIdea, deleteGiftIdea } from '../gift-idea-service.js';
 import { convertIdeaToGift }                                            from '../gift-convert.js';
 import { createShareLinkGiftIdeasByPerson }                             from '../share-service.js';
@@ -17,6 +17,7 @@ import { waitForUserOnce, isAuthed }                                     from '.
 
 let gifts     = [];
 let ideas     = [];
+let pastGifts = [];
 let persons   = [];
 let occasions = [];
 
@@ -26,6 +27,7 @@ let eventListeners = [];
 let editingItem   = null;
 let formMode      = 'none';  // 'none' | 'create' | 'edit' | 'convert'
 let convertIdeaId = null;
+let focusItemId = null;
 let activeDeleteModalCleanup = null;
 let activeSharePickerCleanup = null;
 let activeShareResultCleanup = null;
@@ -355,17 +357,52 @@ function showLoading(show) {
   document.getElementById('giftsLoading')?.classList.toggle('d-none', !show);
 }
 
+function parseDateOnly(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  d.setHours(0, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isDateInPast(value) {
+  const d = parseDateOnly(value);
+  if (!d) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
+}
+
+function getPastDisplayGifts() {
+  const plannedByRule = gifts.filter((gift) => {
+    const status = String(gift?.status || '').toLowerCase();
+    return status === 'ueberreicht' || isDateInPast(gift?.date);
+  });
+
+  const map = new Map();
+  [...pastGifts, ...plannedByRule].forEach((gift) => {
+    if (!gift?.id) return;
+    if (!map.has(gift.id)) map.set(gift.id, gift);
+  });
+
+  return [...map.values()].sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
+}
+
 async function loadData() {
   showLoading(true);
   try {
-    const [g, i, p, o] = await Promise.all([
+    const [g, i, pg, p, o] = await Promise.all([
       listGifts().catch(() => []),
       listGiftIdeas().catch(() => []),
+      listPastGifts().catch(() => []),
       listPersons().catch(() => []),
       listOccasions().catch(() => [])
     ]);
     gifts     = g || [];
     ideas     = i || [];
+    pastGifts = pg || [];
     persons   = p || [];
     occasions = o || [];
   } finally {
@@ -380,7 +417,7 @@ function applyFilters(src) {
         item.personName,
         item.occasionName || '',
         item.giftName     || '',
-        currentTab === 'gifts' ? item.note : item.content
+        currentTab === 'ideas' ? item.content : item.note
       ];
       if (!fields.join(' ').toLowerCase().includes(filters.search.toLowerCase())) return false;
     }
@@ -401,9 +438,9 @@ function resolveOccasionName(occasionId) {
 // ---------- Rendering ----------
 
 function renderFilters(container) {
-  const statuses = currentTab === 'gifts'
-    ? ['all', 'offen', 'besorgt', 'ueberreicht']
-    : ['all', 'offen'];
+  const statuses = currentTab === 'ideas'
+    ? ['all', 'offen']
+    : ['all', 'offen', 'besorgt', 'ueberreicht'];
 
   const customOccasions = getDeduplicatedOccasions();
 
@@ -460,9 +497,11 @@ function renderFilters(container) {
             <i class="bi bi-share"></i> Teilen
           </button>
         ` : ''}
-        <button class="btn btn-primary" id="addItemBtn">
-          <i class="bi bi-plus-circle"></i> Neu
-        </button>
+        ${currentTab !== 'past' ? `
+          <button class="btn btn-primary" id="addItemBtn">
+            <i class="bi bi-plus-circle"></i> Neu
+          </button>
+        ` : ''}
       </div>
     </div>
   `;
@@ -470,27 +509,40 @@ function renderFilters(container) {
 
 function renderList() {
   const listDiv = document.getElementById('listContainer');
-  const src     = applyFilters(currentTab === 'gifts' ? gifts : ideas);
+  const source  = currentTab === 'gifts' ? gifts : (currentTab === 'ideas' ? ideas : getPastDisplayGifts());
+  const src     = applyFilters(source);
+  const sectionTitle = currentTab === 'gifts'
+    ? 'Geschenke'
+    : (currentTab === 'ideas' ? 'Geschenkideen' : 'Vergangene Geschenke');
 
   if (!src.length) {
     listDiv.innerHTML = `
       <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-        <h5 class="mt-3">Keine ${currentTab === 'gifts' ? 'Geschenke' : 'Geschenkideen'} gefunden</h5>
-        <p>Klicke auf "Neu" um ${currentTab === 'gifts' ? 'ein Geschenk' : 'eine Geschenkidee'} hinzuzufügen.</p>
+        <h5 class="mt-3">Keine ${sectionTitle} gefunden</h5>
+        <p>${currentTab === 'past' ? 'Keine Historien-Eintraege vorhanden.' : `Klicke auf "Neu" um ${currentTab === 'gifts' ? 'ein Geschenk' : 'eine Geschenkidee'} hinzuzufuegen.`}</p>
       </div>
     `;
     return;
   }
 
-  const cards = src.map(item => currentTab === 'gifts'
-    ? renderGiftCard(item)
-    : renderIdeaCard(item)
-  ).join('');
+  const cards = src.map(item => (
+    currentTab === 'gifts'
+      ? renderGiftCard(item)
+      : (currentTab === 'ideas' ? renderIdeaCard(item) : renderPastGiftCard(item))
+  )).join('');
 
   listDiv.innerHTML = `<div class="row g-3">${cards}</div>`;
-}
 
+  if (focusItemId) {
+    const target = listDiv.querySelector(`[data-id="${focusItemId}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('border', 'border-3', 'border-primary');
+    }
+    focusItemId = null;
+  }
+}
 function renderGiftCard(item) {
   const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
   const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
@@ -621,6 +673,49 @@ function renderIdeaCard(item) {
   `;
 }
 
+function renderPastGiftCard(item) {
+  const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
+  const statusText  = item.status === 'ueberreicht' ? 'Ueberreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const title = item.giftName || item.occasionName || 'Vergangenes Geschenk';
+
+  return `
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="card h-100 gift-card" data-id="${item.id}">
+        <div class="card-body">
+          <h2 class="gift-primary-title">
+            <i class="bi bi-clock-history text-success"></i>
+            ${title}
+          </h2>
+
+          <div class="mb-3">
+            <span class="badge bg-${statusBadge}">${statusText}</span>
+            <span class="badge bg-light text-dark ms-2">Historie</span>
+          </div>
+
+          <div class="gift-meta-list">
+            <div class="gift-meta-item">
+              <i class="bi bi-calendar-event text-muted"></i>
+              <span class="fw-semibold">Datum:</span>
+              <span>${item.date || '-'}</span>
+            </div>
+            <div class="gift-meta-item">
+              <i class="bi bi-person text-muted"></i>
+              <span class="fw-semibold">Person:</span>
+              <span>${item.personName || '-'}</span>
+            </div>
+            ${item.note ? `
+              <div class="gift-meta-item">
+                <i class="bi bi-chat-left-text text-muted"></i>
+                <span class="fw-semibold">Notiz:</span>
+                <span class="text-muted">${item.note}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function renderForm() {
   const formDiv = document.getElementById('formContainer');
 
@@ -1220,11 +1315,13 @@ function attachListListeners() {
 // ---------- Public API ----------
 
 export async function render(container, ctx) {
-  ctx.setPageHeader('Geschenke & Ideen', 'Verwalte hier deine Geschenke und Geschenkideen.');
+  ctx.setPageHeader('Geschenke & Ideen', 'Verwalte hier deine Geschenke, Geschenkideen und vergangene Geschenke.');
 
   if (ctx.params) {
-    if (ctx.params.tab === 'gifts' || ctx.params.tab === 'ideas') currentTab = ctx.params.tab;
+    if (ctx.params.tab === 'gifts' || ctx.params.tab === 'ideas' || ctx.params.tab === 'past') currentTab = ctx.params.tab;
     if (ctx.params.status) filters.status = ctx.params.status;
+    if (ctx.params.personId) filters.person = ctx.params.personId;
+    if (ctx.params.id) focusItemId = ctx.params.id;
   }
 
   if (!isAuthed()) {
@@ -1248,6 +1345,11 @@ export async function render(container, ctx) {
         <li class="nav-item" role="presentation">
           <a class="nav-link ${currentTab === 'ideas' ? 'active' : ''}" href="#" data-tab="ideas" role="tab">
             <i class="bi bi-lightbulb"></i> Geschenkideen
+          </a>
+        </li>
+        <li class="nav-item" role="presentation">
+          <a class="nav-link ${currentTab === 'past' ? 'active' : ''}" href="#" data-tab="past" role="tab">
+            <i class="bi bi-clock-history"></i> Vergangen
           </a>
         </li>
       </ul>
@@ -1275,8 +1377,10 @@ export function destroy() {
   if (activeSharePickerCleanup) activeSharePickerCleanup(null);
   if (activeShareResultCleanup) activeShareResultCleanup();
   removeAllListeners();
-  gifts = []; ideas = []; persons = []; occasions = [];
+  gifts = []; ideas = []; pastGifts = []; persons = []; occasions = [];
   editingItem   = null;
   formMode      = 'none';
   convertIdeaId = null;
+  focusItemId = null;
 }
+
