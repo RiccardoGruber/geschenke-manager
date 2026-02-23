@@ -8,6 +8,7 @@
 import { listGifts, createGift, updateGift, deleteGift }               from '../gift-service.js';
 import { listGiftIdeas, createGiftIdea, updateGiftIdea, deleteGiftIdea } from '../gift-idea-service.js';
 import { convertIdeaToGift }                                            from '../gift-convert.js';
+import { createShareLinkGiftIdeasByPerson }                             from '../share-service.js';
 import { listPersons }                                                   from '../person-service.js';
 import { listOccasions }                                                 from '../occasion-service.js';
 import { waitForUserOnce, isAuthed }                                     from '../auth-adapter.js';
@@ -26,6 +27,8 @@ let editingItem   = null;
 let formMode      = 'none';  // 'none' | 'create' | 'edit' | 'convert'
 let convertIdeaId = null;
 let activeDeleteModalCleanup = null;
+let activeSharePickerCleanup = null;
+let activeShareResultCleanup = null;
 
 // Feste Anlässe (immer verfügbar, unabhängig von DB-Daten)
 const FIXED_OCCASIONS = [
@@ -129,6 +132,207 @@ function getDeleteFailedMessage(err, label = 'Der Eintrag') {
     return `${label} konnte nicht geloescht werden. Die ID fehlt.`;
   }
   return `${label} konnte nicht geloescht werden: ${err?.message || err}`;
+}
+
+function showPersonSharePickerModal() {
+  if (activeSharePickerCleanup) activeSharePickerCleanup(null);
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="sharePersonPickerTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="sharePersonPickerTitle" class="mb-0">
+            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wählen
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="text-muted small mb-3">Wähle die Person, deren Geschenkideen geteilt werden sollen.</p>
+          <div class="share-person-list">
+            ${persons.map((p) => `
+              <button type="button" class="share-person-option" data-person-id="${p.id}">
+                <i class="bi bi-person-circle text-primary"></i>
+                <span>${p.name}</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+    const personBtns = [...backdrop.querySelectorAll('.share-person-option')];
+
+    const finish = (person) => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      personBtns.forEach(btn => btn.removeEventListener('click', onPick));
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeSharePickerCleanup === finish) activeSharePickerCleanup = null;
+      resolve(person);
+    };
+
+    const onCancel = () => finish(null);
+    const onPick = (e) => {
+      const pid = e.currentTarget.dataset.personId;
+      const person = persons.find(p => p.id === pid) || null;
+      finish(person);
+    };
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onCancel();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+
+    activeSharePickerCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    personBtns.forEach(btn => btn.addEventListener('click', onPick));
+
+    modalEl.focus?.();
+    personBtns[0]?.focus();
+  });
+}
+
+function showShareResultModal({ personName, url, copied }) {
+  if (activeShareResultCleanup) activeShareResultCleanup();
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="shareResultTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="shareResultTitle" class="mb-0">
+            <i class="bi bi-check-circle text-success"></i> Share-Link erstellt
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="mb-2">${copied ? 'Der Link wurde in die Zwischenablage kopiert.' : 'Der Link wurde erstellt.'}</p>
+          <p class="mb-2 text-muted small">Person: ${personName || 'Unbekannt'}</p>
+          <input type="text" class="form-control form-control-sm" readonly value="${url}">
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="copy">
+            <i class="bi bi-clipboard"></i> Link kopieren
+          </button>
+          <button type="button" class="btn btn-primary" data-action="ok">OK</button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const okBtn = backdrop.querySelector('[data-action="ok"]');
+    const copyBtn = backdrop.querySelector('[data-action="copy"]');
+
+    const finish = () => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onClose);
+      okBtn.removeEventListener('click', onClose);
+      copyBtn.removeEventListener('click', onCopy);
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeShareResultCleanup === finish) activeShareResultCleanup = null;
+      resolve();
+    };
+
+    const onClose = () => finish();
+    const onCopy = async () => {
+      try {
+        await navigator.clipboard?.writeText(url);
+        copyBtn.innerHTML = '<i class="bi bi-check2"></i> Kopiert';
+      } catch {
+        copyBtn.innerHTML = '<i class="bi bi-clipboard-x"></i> Kopieren fehlgeschlagen';
+      }
+    };
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onClose();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    activeShareResultCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onClose);
+    okBtn.addEventListener('click', onClose);
+    copyBtn.addEventListener('click', onCopy);
+
+    modalEl.focus?.();
+    okBtn.focus();
+  });
+}
+
+async function handleShareIdeasByPerson() {
+  if (currentTab !== 'ideas') return;
+
+  let personId = filters.person;
+  if (!personId || personId === 'all') {
+    const selectedPerson = await showPersonSharePickerModal();
+    if (!selectedPerson) return;
+
+    personId = selectedPerson.id;
+    filters.person = personId;
+
+    const personFilter = document.getElementById('filterPerson');
+    if (personFilter) personFilter.value = personId;
+    renderList();
+    attachListListeners();
+  }
+
+  const shareBtn = document.getElementById('sharePersonIdeasBtn');
+  const personName = persons.find(p => p.id === personId)?.name || '';
+  const oldText = shareBtn?.innerHTML || '';
+
+  if (shareBtn) {
+    shareBtn.disabled = true;
+    shareBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Erstelle Link...';
+  }
+
+  try {
+    const url = await createShareLinkGiftIdeasByPerson({ personId, personName });
+    let copied = false;
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    }
+
+    await showShareResultModal({ personName, url, copied });
+  } catch (err) {
+    console.error(err);
+    alert('Share-Link konnte nicht erstellt werden: ' + (err?.message || err));
+  } finally {
+    if (shareBtn) {
+      shareBtn.disabled = false;
+      shareBtn.innerHTML = oldText || '<i class="bi bi-share"></i> Teilen';
+    }
+  }
 }
 
 /**
@@ -251,6 +455,11 @@ function renderFilters(container) {
       </div>
 
       <div class="ms-auto">
+        ${currentTab === 'ideas' ? `
+          <button class="btn btn-outline-primary me-2" id="sharePersonIdeasBtn">
+            <i class="bi bi-share"></i> Teilen
+          </button>
+        ` : ''}
         <button class="btn btn-primary" id="addItemBtn">
           <i class="bi bi-plus-circle"></i> Neu
         </button>
@@ -764,6 +973,11 @@ function attachEventListeners(ctx) {
     attachEventListeners(ctx);
   });
 
+  addListener(document.getElementById('sharePersonIdeasBtn'), 'click', async (e) => {
+    e.preventDefault();
+    await handleShareIdeasByPerson();
+  });
+
   // Formular
   const formEl = document.getElementById('entityForm');
   addListener(formEl, 'submit', (e) => handleFormSubmit(e, ctx));
@@ -1058,6 +1272,8 @@ export async function render(container, ctx) {
 
 export function destroy() {
   if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+  if (activeSharePickerCleanup) activeSharePickerCleanup(null);
+  if (activeShareResultCleanup) activeShareResultCleanup();
   removeAllListeners();
   gifts = []; ideas = []; persons = []; occasions = [];
   editingItem   = null;

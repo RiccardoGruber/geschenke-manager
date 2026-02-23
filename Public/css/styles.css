@@ -1414,6 +1414,33 @@
   padding: 0.9rem 1.25rem 1.25rem;
 }
 
+.share-person-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.share-person-option {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.share-person-option:hover {
+  border-color: var(--brand-color);
+  background: var(--hover-bg);
+}
+
 @media (max-width: 576px) {
   .occasion-delete-modal {
     width: 100%;
