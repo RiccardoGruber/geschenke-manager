@@ -182,7 +182,7 @@ function applyFilters(src) {
     }
     if (filters.person   !== 'all' && item.personId   !== filters.person)   return false;
     if (filters.occasion !== 'all' && item.occasionId !== filters.occasion) return false;
-    if (currentTab === 'gifts' && filters.status !== 'all' && item.status !== filters.status) return false;
+    if (filters.status !== 'all' && item.status !== filters.status) return false;
     return true;
   });
 }
@@ -199,7 +199,7 @@ function resolveOccasionName(occasionId) {
 function renderFilters(container) {
   const statuses = currentTab === 'gifts'
     ? ['all', 'offen', 'besorgt', 'ueberreicht']
-    : ['all', 'offen', 'besorgt', 'erledigt'];
+    : ['all', 'offen'];
 
   const customOccasions = getDeduplicatedOccasions();
 
@@ -238,16 +238,17 @@ function renderFilters(container) {
         </select>
       </div>
 
-      ${currentTab === 'gifts' ? `
-        <div>
-          <select id="filterStatus" class="form-select">
-            ${statuses.map(s => {
-              const label = s === 'all' ? 'Alle Status' : s.charAt(0).toUpperCase() + s.slice(1);
-              return `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${label}</option>`;
-            }).join('')}
-          </select>
-        </div>
-      ` : ''}
+      <div>
+        <select id="filterStatus" class="form-select">
+          ${statuses.map(s => {
+            let label = s === 'all' ? 'Alle Status' : s.charAt(0).toUpperCase() + s.slice(1);
+            if (currentTab === 'ideas') {
+              label = s === 'all' ? 'Alle Ideen' : 'Nur offene Ideen';
+            }
+            return `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${label}</option>`;
+          }).join('')}
+        </select>
+      </div>
 
       <div class="ms-auto">
         <button class="btn btn-primary" id="addItemBtn">
@@ -350,6 +351,7 @@ function renderIdeaCard(item) {
   const statusBadge = item.status === 'erledigt' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
   const statusText  = item.status === 'erledigt' ? 'Erledigt' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
   const cardTitle   = item.giftName || item.occasionName || 'Geschenkidee';
+  const detailsText = item.note || (!item.giftName ? item.content : '');
 
   let contentPreview = '';
   if (item.imageUrl) {
@@ -365,8 +367,8 @@ function renderIdeaCard(item) {
         <span class="text-truncate">${item.linkUrl}</span>
       </a>
     `;
-  } else if (item.note || item.content) {
-    contentPreview = `<p class="mb-0">${item.note || item.content}</p>`;
+  } else if (detailsText) {
+    contentPreview = `<p class="mb-0">${detailsText}</p>`;
   }
 
   return `
@@ -432,6 +434,7 @@ function renderForm() {
 function renderConvertForm(formDiv) {
   const idea = ideas.find(i => i.id === convertIdeaId);
   if (!idea) { formMode = 'none'; renderForm(); return; }
+  const defaultGiftName = (idea.giftName || idea.content || '').trim();
 
   formDiv.innerHTML = `
     <div class="card">
@@ -450,6 +453,7 @@ function renderConvertForm(formDiv) {
           <div class="mb-3">
             <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
             <input type="text" id="convertGiftName" class="form-control" required
+                   value="${defaultGiftName}"
                    placeholder="z.B. Amazon Gutschein, Buch 'Die Säulen der Erde'">
           </div>
 
@@ -587,18 +591,25 @@ function renderEntityForm(formDiv) {
 }
 
 function renderIdeaFormFields(item) {
+  const ideaGiftName = item
+    ? (item.giftName || (!item.note ? item.content : '') || '')
+    : '';
+  const ideaDetails = item
+    ? (item.note || (!item.giftName ? item.content : '') || '')
+    : '';
+
   return `
     <div class="mb-3">
       <label class="form-label">Geschenkname</label>
       <input type="text" id="formGiftName" class="form-control"
-             value="${item ? item.giftName || '' : ''}"
+             value="${ideaGiftName}"
              placeholder="z.B. Gutschein, Buch, Konzertkarten">
     </div>
 
     <div class="mb-3">
       <label class="form-label">Zusätzliche Informationen</label>
       <textarea id="formNote" class="form-control" rows="3"
-                placeholder="Optional: Details zur Geschenkidee">${item ? item.note || item.content || '' : ''}</textarea>
+                placeholder="Optional: Details zur Geschenkidee">${ideaDetails}</textarea>
     </div>
 
     <div class="mb-3">
@@ -860,11 +871,7 @@ async function handleConvertSubmit(e, ctx) {
     btn.disabled  = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird konvertiert...';
 
-    await convertIdeaToGift(convertIdeaId, { date, note });
-    await loadData();
-
-    const newGift = gifts.find(g => g.sourceIdeaId === convertIdeaId);
-    if (newGift) await updateGift(newGift.id, { giftName });
+    await convertIdeaToGift(convertIdeaId, { date, note, giftName });
 
     await loadData();
     formMode      = 'none';
