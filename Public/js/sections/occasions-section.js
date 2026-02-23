@@ -431,9 +431,18 @@ function renderForm() {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Name <span class="text-danger">*</span></label>
-              <input type="text" id="formName" class="form-control"
-                     value="${item ? item.name : ''}" required
-                     placeholder="z.B. Hochzeitstag, Firmenjubiläum">
+              ${isEdit ? `
+                <input type="text" id="formName" class="form-control"
+                       value="${item ? item.name : ''}" required
+                       placeholder="z.B. Hochzeitstag, Firmenjubilaeum">
+              ` : `
+                <select id="formNamePreset" class="form-select" required>
+                  <option value="">Bitte waehlen...</option>
+                  <option value="Geburtstag">Geburtstag</option>
+                  <option value="Weihnachten">Weihnachten</option>
+                  <option value="__custom__">Individueller Anlass...</option>
+                </select>
+              `}
             </div>
 
             <div class="col-md-6 mb-3">
@@ -445,6 +454,16 @@ function renderForm() {
               </div>
             </div>
           </div>
+
+          ${!isEdit ? `
+            <div class="row">
+              <div class="col-md-6 mb-3 d-none" id="customNameWrap">
+                <label class="form-label">Individueller Anlass <span class="text-danger">*</span></label>
+                <input type="text" id="formCustomName" class="form-control"
+                       placeholder="z.B. Hochzeitstag, Firmenjubilaeum">
+              </div>
+            </div>
+          ` : ''}
 
           <div class="row">
             <div class="col-md-6 mb-3">
@@ -469,7 +488,7 @@ function renderForm() {
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Zusätzliche Informationen</label>
+            <label class="form-label">Zusaetzliche Informationen</label>
             <textarea id="formInfo" class="form-control" rows="3"
                       placeholder="Optional: Weitere Details zum Anlass">${item ? item.info || '' : ''}</textarea>
           </div>
@@ -483,7 +502,7 @@ function renderForm() {
             </button>
             ${isEdit ? `
               <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
-                <i class="bi bi-trash"></i> Löschen
+                <i class="bi bi-trash"></i> Loeschen
               </button>
             ` : ''}
           </div>
@@ -492,13 +511,24 @@ function renderForm() {
     </div>
   `;
 
-  // Datepicker: Klick auf die ganze Gruppe öffnet den Picker
+  // Datepicker: Klick auf die ganze Gruppe oeffnet den Picker
   const dateInput = document.getElementById('formDate');
   const dateGroup = dateInput.closest('.input-group');
   dateGroup.style.cursor = 'pointer';
   dateGroup.addEventListener('click', () => dateInput.showPicker?.());
-}
 
+  const namePreset = document.getElementById('formNamePreset');
+  const customNameWrap = document.getElementById('customNameWrap');
+  const customNameInput = document.getElementById('formCustomName');
+  if (namePreset && customNameWrap && customNameInput) {
+    namePreset.addEventListener('change', () => {
+      const isCustom = namePreset.value === '__custom__';
+      customNameWrap.classList.toggle('d-none', !isCustom);
+      customNameInput.required = isCustom;
+      if (!isCustom) customNameInput.value = '';
+    });
+  }
+}
 // ---------- Event Handlers ----------
 
 function attachEventListeners(ctx) {
@@ -548,7 +578,17 @@ function attachEventListeners(ctx) {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
 
     try {
-      const name     = document.getElementById('formName').value.trim();
+      let name = '';
+      if (mode === 'edit') {
+        name = document.getElementById('formName').value.trim();
+      } else {
+        const selected = document.getElementById('formNamePreset')?.value || '';
+        if (selected === '__custom__') {
+          name = document.getElementById('formCustomName')?.value.trim() || '';
+        } else {
+          name = String(selected).trim();
+        }
+      }
       const date     = document.getElementById('formDate').value;
       const person   = document.getElementById('formPerson').value;
       const info     = document.getElementById('formInfo').value.trim();
@@ -695,4 +735,5 @@ export function destroy() {
   editingId         = null;
   mode              = 'none';
 }
+
 
