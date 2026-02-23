@@ -1,35 +1,32 @@
 /**
  * persons-section.js
  * -------------------------------------------------------
- * Personen-Verwaltung mit zweispaltiger/Tab-basierter UI
- * Desktop: Links Liste, rechts Formular
- * Mobile:  Tabs (Liste / Bearbeiten)
+ * Personen-Verwaltung als Kachel-Grid mit Accordion-Verhalten.
  */
 
 import { listPersons, createPerson, updatePerson, deletePerson } from '../person-service.js';
+import { listGiftIdeas } from '../gift-idea-service.js';
+import { listGifts, listPastGifts } from '../gift-service.js';
 import { waitForUserOnce, isAuthed } from '../auth-adapter.js';
-import { hasGiftIdeasByPerson } from '../gift-idea-service.js';
-import { hasGiftsByPerson }     from '../gift-service.js';
 
 // ---------- State ----------
 
-let allPersons      = [];
+let allPersons = [];
 let filteredPersons = [];
-let editingId       = null;
-let mode            = 'none'; // 'none' | 'create' | 'edit'
-let eventListeners  = [];
-let messageTimer    = null;
+let allGiftIdeas = [];
+let allGifts = [];
+let allPastGifts = [];
+
+let mode = 'none'; // 'none' | 'create' | 'edit'
+let editingId = null;
+let currentlyOpenPersonId = null;
+
+let eventListeners = [];
+let messageTimer = null;
 let activeDeleteModalCleanup = null;
+let currentCtx = null;
 
 // ---------- Helpers ----------
-
-function showPersonsMessage(msg, type = 'success') {
-  const box = document.getElementById('personsMessage');
-  if (!box) return;
-  box.innerHTML = `<div class="alert alert-${type}" role="alert">${msg}</div>`;
-  if (messageTimer) clearTimeout(messageTimer);
-  messageTimer = setTimeout(() => { box.innerHTML = ''; messageTimer = null; }, 3000);
-}
 
 function addListener(element, event, handler) {
   if (!element) return;
@@ -38,10 +35,111 @@ function addListener(element, event, handler) {
 }
 
 function removeAllListeners() {
-  eventListeners.forEach(({ element, event, handler }) => {
-    if (element) element.removeEventListener(event, handler);
-  });
+  eventListeners.forEach(({ element, event, handler }) => element?.removeEventListener(event, handler));
   eventListeners = [];
+}
+
+function showPersonsMessage(msg, type = 'success') {
+  const box = document.getElementById('personsMessage');
+  if (!box) return;
+  box.innerHTML = `<div class="alert alert-${type}" role="alert">${msg}</div>`;
+  if (messageTimer) clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => {
+    box.innerHTML = '';
+    messageTimer = null;
+  }, 3000);
+}
+
+function normalizeStatus(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
+function formatStatus(status) {
+  const s = normalizeStatus(status);
+  if (s === 'ueberreicht') return 'Ueberreicht';
+  if (s === 'erledigt') return 'Erledigt';
+  if (s === 'besorgt') return 'Besorgt';
+  return 'Offen';
+}
+
+function getPersonById(personId) {
+  return allPersons.find((p) => p.id === personId) || null;
+}
+
+function getPersonDetailData(personId) {
+  const gifts = allGifts.filter((g) => g.personId === personId);
+  const ideas = allGiftIdeas.filter((i) => i.personId === personId);
+  const past = allPastGifts.filter((g) => g.personId === personId);
+  return { gifts, ideas, past };
+}
+
+export function calculatePersonPreviewStats(person) {
+  const personId = person?.id;
+  if (!personId) {
+    return { ideasTotal: 0, ideasOpen: 0, pastTotal: 0, hasOpenTasks: false };
+  }
+
+  const ideas = allGiftIdeas.filter((idea) => idea.personId === personId);
+  const ideasTotal = ideas.length;
+  const ideasOpen = ideas.filter((idea) => normalizeStatus(idea.status) === 'offen').length;
+  const pastTotal = allPastGifts.filter((gift) => gift.personId === personId).length;
+
+  return {
+    ideasTotal,
+    ideasOpen,
+    pastTotal,
+    hasOpenTasks: ideasOpen > 0
+  };
+}
+
+export function renderPersonPreviewStats(person) {
+  const stats = calculatePersonPreviewStats(person);
+  const openBadge = stats.hasOpenTasks
+    ? `<span class="badge bg-warning text-dark">Offen</span>`
+    : `<span class="badge bg-success">Alles erledigt</span>`;
+
+  return `
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <span class="badge bg-light text-dark">${stats.ideasTotal} Ideen</span>
+      <span class="badge bg-light text-dark">${stats.ideasOpen} offen</span>
+      <span class="badge bg-light text-dark">${stats.pastTotal} Geschenke</span>
+      ${openBadge}
+    </div>
+  `;
+}
+
+export function closeAllPersonCards() {
+  currentlyOpenPersonId = null;
+  renderPersonsList();
+}
+
+export function openPersonCard(personId) {
+  currentlyOpenPersonId = personId || null;
+  renderPersonsList();
+}
+
+export function togglePersonCard(personId) {
+  if (!personId) return;
+  if (currentlyOpenPersonId === personId) {
+    closeAllPersonCards();
+    return;
+  }
+  openPersonCard(personId);
+}
+
+async function loadAllData() {
+  const [persons, ideas, gifts, past] = await Promise.all([
+    listPersons().catch(() => []),
+    listGiftIdeas().catch(() => []),
+    listGifts().catch(() => []),
+    listPastGifts().catch(() => [])
+  ]);
+
+  allPersons = persons || [];
+  allGiftIdeas = ideas || [];
+  allGifts = gifts || [];
+  allPastGifts = past || [];
+  filteredPersons = [...allPersons];
 }
 
 function showDeleteConfirmModal(personName = '') {
@@ -59,7 +157,7 @@ function showDeleteConfirmModal(personName = '') {
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">Moechtest du diese Person wirklich löschen?</p>
+          <p class="mb-2">Möchtest du diese Person wirklich löschen?</p>
           <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
         </div>
         <div class="occasion-delete-modal-actions">
@@ -115,33 +213,339 @@ function showDeleteConfirmModal(personName = '') {
   });
 }
 
+function renderPersonDetails(personId) {
+  const { gifts, ideas, past } = getPersonDetailData(personId);
+
+  const renderList = (items, type) => {
+    if (!items.length) return `<p class="text-muted small mb-0">Keine Einträge vorhanden.</p>`;
+    return items.map((item) => {
+      const title = type === 'ideas'
+        ? (item.giftName || item.content || 'Geschenkidee')
+        : (item.giftName || item.occasionName || (type === 'past' ? 'Vergangenes Geschenk' : 'Geschenk'));
+
+      const meta = type === 'ideas'
+        ? `${item.occasionName || '-'} · ${formatStatus(item.status)}`
+        : `${item.date || '-'} · ${formatStatus(item.status)}`;
+
+      const cardClass = type === 'ideas' ? 'gift-idea-card' : 'gift-card';
+      const iconClass = type === 'ideas' ? 'text-warning' : (type === 'past' ? 'text-success' : 'text-primary');
+
+      return `
+        <div class="card ${cardClass} mb-2" data-nav-gift="${type}" data-gift-id="${item.id}" style="cursor:pointer;">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">${title}</div>
+                <small class="text-muted">${meta}</small>
+              </div>
+              <i class="bi bi-arrow-right-circle ${iconClass}"></i>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  return `
+    <div class="mt-3 pt-3 border-top">
+      <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-sm btn-outline-primary" data-action="edit-person" data-person-id="${personId}">
+          <i class="bi bi-pencil"></i> Bearbeiten
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" data-action="collapse-person" data-person-id="${personId}">
+          <i class="bi bi-chevron-up"></i> Einklappen
+        </button>
+      </div>
+
+      <div class="mb-3">
+        <h6 class="mb-2"><i class="bi bi-gift"></i> Geschenke</h6>
+        ${renderList(gifts, 'gifts')}
+      </div>
+      <div class="mb-3">
+        <h6 class="mb-2"><i class="bi bi-lightbulb"></i> Geschenkideen</h6>
+        ${renderList(ideas, 'ideas')}
+      </div>
+      <div>
+        <h6 class="mb-2"><i class="bi bi-clock-history"></i> Vergangene Geschenke</h6>
+        ${renderList(past, 'past')}
+      </div>
+    </div>
+  `;
+}
+
+function renderPersonsList() {
+  const listDiv = document.getElementById('personsList');
+  if (!listDiv) return;
+
+  const counter = document.getElementById('personsCount');
+  if (counter) counter.textContent = filteredPersons.length;
+
+  if (!filteredPersons.length) {
+    listDiv.innerHTML = `
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+        <h5 class="mt-3">Keine Personen</h5>
+        <p>Klicke auf "Neu", um eine Person hinzuzuügen.</p>
+      </div>
+    `;
+    return;
+  }
+
+  listDiv.innerHTML = `
+    <div class="row g-3">
+      ${filteredPersons.map((person) => {
+        const isOpen = currentlyOpenPersonId === person.id;
+        const hasBirthday = String(person.birthday || '').trim() !== '';
+        return `
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100 gift-card person-card ${isOpen ? 'active' : ''}" data-person-card="${person.id}" style="cursor:pointer;">
+              <div class="card-body">
+                <h2 class="gift-primary-title mb-2">
+                  <i class="bi bi-person-circle text-primary"></i>
+                  ${person.name}
+                </h2>
+                <div class="gift-meta-list">
+                  <div class="gift-meta-item">
+                    <i class="bi bi-calendar-event text-muted"></i>
+                    <span class="fw-semibold">Geburtstag:</span>
+                    <span>${hasBirthday ? person.birthday : '-'}</span>
+                  </div>
+                  ${person.info ? `
+                    <div class="gift-meta-item">
+                      <i class="bi bi-chat-left-text text-muted"></i>
+                      <span class="fw-semibold">Info:</span>
+                      <span class="text-muted">${person.info}</span>
+                    </div>
+                  ` : ''}
+                </div>
+                ${renderPersonPreviewStats(person)}
+                <div class="d-flex justify-content-end mt-3">
+                  <span class="badge bg-light text-dark">
+                    <i class="bi bi-chevron-${isOpen ? 'up' : 'down'}"></i> ${isOpen ? 'Weniger' : 'Details'}
+                  </span>
+                </div>
+                ${isOpen ? renderPersonDetails(person.id) : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderEditor() {
+  const host = document.getElementById('personEditor');
+  if (!host) return;
+
+  if (mode === 'none') {
+    host.innerHTML = '';
+    return;
+  }
+
+  const isEdit = mode === 'edit';
+  const person = isEdit ? getPersonById(editingId) : null;
+
+  host.innerHTML = `
+    <form class="persons-form card p-3 mb-3" id="personForm">
+      <h5 class="mb-3">
+        <i class="bi bi-${isEdit ? 'pencil-square' : 'person-plus'}"></i>
+        ${isEdit ? 'Person bearbeiten' : 'Neue Person'}
+      </h5>
+
+      <div class="mb-3">
+        <label for="formName" class="form-label">Name <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="formName"
+               value="${person?.name || ''}" placeholder="z.B. Anna Müller" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="formBirthday" class="form-label">Geburtstag</label>
+        <input type="date" class="form-control" id="formBirthday" value="${person?.birthday || ''}">
+      </div>
+
+      <div class="mb-3">
+        <label for="formInfo" class="form-label">Info / Notizen</label>
+        <textarea class="form-control" id="formInfo" rows="3"
+                  placeholder="z.B. Schwester, Kollege...">${person?.info || ''}</textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-circle"></i> Speichern
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="cancelBtn">
+          <i class="bi bi-x-circle"></i> Abbrechen
+        </button>
+        ${isEdit ? `
+          <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
+            <i class="bi bi-trash"></i> Löschen
+          </button>
+        ` : ''}
+      </div>
+    </form>
+  `;
+}
+
+async function savePersonFromForm() {
+  const name = document.getElementById('formName')?.value.trim();
+  const birthday = document.getElementById('formBirthday')?.value || '';
+  const info = document.getElementById('formInfo')?.value.trim() || '';
+
+  if (!name) {
+    showPersonsMessage('Name ist erforderlich.', 'warning');
+    return;
+  }
+
+  const userCheck = await waitForUserOnce();
+  if (!userCheck) {
+    window.location.href = './login.html';
+    return;
+  }
+
+  if (mode === 'edit' && editingId) {
+    await updatePerson(editingId, { name, birthday, info });
+  } else {
+    await createPerson({ name, birthday, info });
+  }
+
+  await loadAllData();
+  mode = 'none';
+  editingId = null;
+  if (currentlyOpenPersonId && !getPersonById(currentlyOpenPersonId)) {
+    currentlyOpenPersonId = null;
+  }
+  renderEditor();
+  renderPersonsList();
+}
+
+function hasLinkedEntries(personId) {
+  const hasIdeas = allGiftIdeas.some((idea) => idea.personId === personId);
+  const hasPlannedGifts = allGifts.some((gift) => gift.personId === personId);
+  const hasPast = allPastGifts.some((gift) => gift.personId === personId);
+  return hasIdeas || hasPlannedGifts || hasPast;
+}
+
 function getDeleteFailedMessage(err) {
   const raw = String(err?.message || err || '').toLowerCase();
-  if (raw.includes('permission') || raw.includes('unauthorized')) {
-    return 'Die Person kann nicht geloescht werden. Es fehlen Berechtigungen.';
-  }
-  if (raw.includes('kein eingeloggter benutzer') || raw.includes('auth')) {
-    return 'Die Person kann nicht geloescht werden. Bitte erneut einloggen.';
-  }
-  if (raw.includes('id fehlt')) {
-    return 'Die Person kann nicht geloescht werden. Die ID fehlt.';
-  }
-  return `Die Person kann nicht geloescht werden: ${err?.message || err}`;
+  if (raw.includes('permission') || raw.includes('unauthorized')) return 'Die Person kann nicht gelöscht werden. Es fehlen Berechtigungen.';
+  if (raw.includes('kein eingeloggter benutzer') || raw.includes('auth')) return 'Die Person kann nicht gelöscht werden. Bitte erneut einloggen.';
+  if (raw.includes('id fehlt')) return 'Die Person kann nicht gelöscht werden. Die ID fehlt.';
+  return `Die Person kann nicht gelöscht werden: ${err?.message || err}`;
 }
 
-/** Wechselt den sichtbaren Tab (nur Mobile < 992px). */
-function switchToTab(tabName) {
-  if (window.innerWidth >= 992) return;
-  document.querySelectorAll('.persons-tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
-  document.getElementById('listContainer')?.classList.toggle('mobile-hidden', tabName !== 'list');
-  document.getElementById('formContainer')?.classList.toggle('mobile-hidden', tabName !== 'edit');
+function attachEventListeners(ctx) {
+  currentCtx = ctx;
+  removeAllListeners();
+
+  const addBtn = document.getElementById('addPersonBtn');
+  const searchInput = document.getElementById('searchInput');
+  const listHost = document.getElementById('personsList');
+  const editorHost = document.getElementById('personEditor');
+
+  addListener(addBtn, 'click', () => {
+    mode = 'create';
+    editingId = null;
+    renderEditor();
+  });
+
+  addListener(searchInput, 'input', (e) => {
+    const term = String(e.target.value || '').toLowerCase();
+    filteredPersons = allPersons.filter((p) =>
+      String(p.name || '').toLowerCase().includes(term) ||
+      String(p.info || '').toLowerCase().includes(term)
+    );
+    if (currentlyOpenPersonId && !filteredPersons.some((p) => p.id === currentlyOpenPersonId)) {
+      currentlyOpenPersonId = null;
+    }
+    renderPersonsList();
+  });
+
+  addListener(listHost, 'click', (e) => {
+    const navCard = e.target.closest('[data-nav-gift]');
+    if (navCard) {
+      e.preventDefault();
+      e.stopPropagation();
+      const tab = navCard.getAttribute('data-nav-gift');
+      const id = navCard.getAttribute('data-gift-id');
+      if (tab && id) ctx.navigate('gifts', { tab, id, personId: currentlyOpenPersonId });
+      return;
+    }
+
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const action = actionBtn.getAttribute('data-action');
+      const personId = actionBtn.getAttribute('data-person-id');
+      if (action === 'collapse-person') closeAllPersonCards();
+      if (action === 'edit-person') {
+        editingId = personId;
+        mode = 'edit';
+        renderEditor();
+      }
+      return;
+    }
+
+    const card = e.target.closest('[data-person-card]');
+    if (!card) return;
+    const personId = card.getAttribute('data-person-card');
+    togglePersonCard(personId);
+  });
+
+  addListener(editorHost, 'submit', async (e) => {
+    if (e.target?.id !== 'personForm') return;
+    e.preventDefault();
+    try {
+      await savePersonFromForm();
+    } catch (err) {
+      showPersonsMessage(`Fehler: ${err?.message || err}`, 'danger');
+    }
+  });
+
+  addListener(editorHost, 'click', async (e) => {
+    const cancelBtn = e.target.closest('#cancelBtn');
+    if (cancelBtn) {
+      e.preventDefault();
+      mode = 'none';
+      editingId = null;
+      renderEditor();
+      return;
+    }
+
+    const deleteBtn = e.target.closest('#deleteBtn');
+    if (!deleteBtn) return;
+    e.preventDefault();
+
+    if (!editingId) return;
+    const person = getPersonById(editingId);
+    const ok = await showDeleteConfirmModal(person?.name || '');
+    if (!ok) return;
+
+    try {
+      if (hasLinkedEntries(editingId)) {
+        showPersonsMessage('Diese Person kann nicht gelöscht werden, weil bereits Geschenkideen oder Geschenke existieren.', 'warning');
+        return;
+      }
+
+      await deletePerson(editingId);
+      await loadAllData();
+      if (currentlyOpenPersonId === editingId) currentlyOpenPersonId = null;
+      editingId = null;
+      mode = 'none';
+      renderEditor();
+      renderPersonsList();
+      showPersonsMessage('Person wurde erfolgreich gelöscht.', 'success');
+    } catch (err) {
+      showPersonsMessage(getDeleteFailedMessage(err), 'danger');
+    }
+  });
 }
 
-// ---------- Rendering ----------
+// ---------- Public API ----------
 
 export async function render(container, ctx) {
-  ctx.setPageHeader('Personen verwalten', 'Verwalte hier alle wichtigen Personen. Du kannst neue Personen hinzufügen, bearbeiten oder löschen.');
+  ctx.setPageHeader('Personen verwalten', 'Verwalte hier alle wichtigen Personen.');
 
   if (!isAuthed()) {
     container.innerHTML = `
@@ -155,355 +559,52 @@ export async function render(container, ctx) {
   }
 
   try {
-    allPersons = await listPersons();
+    await loadAllData();
   } catch (err) {
     console.warn('Fehler beim Laden von Personen:', err);
     container.innerHTML = `
       <div class="alert alert-warning">
-        Personen konnten nicht geladen werden. Bitte einloggen oder später erneut versuchen.
-        <div class="mt-2"><a class="btn btn-sm btn-primary" href="./login.html">Zum Login</a></div>
+        Personen konnten nicht geladen werden.
       </div>
     `;
     return;
   }
 
-  filteredPersons = [...allPersons];
-  mode            = 'none';
-  editingId       = null;
+  mode = 'none';
+  editingId = null;
+
+  const targetPersonId = ctx?.params?.id;
+  if (targetPersonId && allPersons.some((p) => p.id === targetPersonId)) {
+    currentlyOpenPersonId = targetPersonId;
+  } else {
+    currentlyOpenPersonId = null;
+  }
 
   container.innerHTML = `
     <div class="persons-manager">
       <div id="personsMessage" class="mb-3"></div>
-
-      <!-- Tab Navigation (nur Mobile) -->
-      <div class="persons-tabs d-lg-none mb-3">
-        <button class="persons-tab-btn active" data-tab="list">
-          <i class="bi bi-list-ul"></i> Liste
-        </button>
-        <button class="persons-tab-btn" data-tab="edit">
-          <i class="bi bi-pencil-square"></i> Bearbeiten
-        </button>
-      </div>
-
-      <div class="persons-content">
-        <!-- Linke Spalte: Personenliste -->
-        <div class="persons-list-container" id="listContainer">
-          <div class="persons-list-header">
-            <h5 class="mb-0">
-              <i class="bi bi-people-fill"></i> Personen
-              <span class="badge bg-light text-dark" id="personsCount">${filteredPersons.length}</span>
-            </h5>
-            <button class="btn btn-sm btn-primary" id="addPersonBtn">
-              <i class="bi bi-plus-circle"></i> Neu
-            </button>
-          </div>
-
-          <div class="persons-search mb-3">
-            <input
-              type="text"
-              class="form-control form-control-sm"
-              id="searchInput"
-              placeholder="Personen suchen..."
-            >
-          </div>
-
-          <div class="persons-list" id="personsList"></div>
-        </div>
-
-        <!-- Rechte Spalte: Formular (Desktop: immer sichtbar wenn Mode != none) -->
-        <div class="persons-form-container d-lg-block" id="formContainer">
-          <div class="persons-form-content" id="formContent"></div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h5 class="mb-0">
+          <i class="bi bi-people-fill"></i> Personen
+          <span class="badge bg-light text-dark" id="personsCount">${filteredPersons.length}</span>
+        </h5>
+        <div class="d-flex gap-2">
+          <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Personen suchen..." style="min-width: 220px;">
+          <button class="btn btn-sm btn-primary" id="addPersonBtn">
+            <i class="bi bi-plus-circle"></i> Neu
+          </button>
         </div>
       </div>
+
+      <div id="personEditor"></div>
+      <div id="personsList"></div>
     </div>
   `;
 
+  renderEditor();
   renderPersonsList();
-  renderForm();
   attachEventListeners(ctx);
 }
-
-function renderPersonsList() {
-  const listDiv = document.getElementById('personsList');
-  if (!listDiv) return;
-
-  // Zähler aktualisieren
-  const counter = document.getElementById('personsCount');
-  if (counter) counter.textContent = filteredPersons.length;
-
-  if (!filteredPersons.length) {
-    listDiv.innerHTML = `
-      <div class="persons-empty-state">
-        <i class="bi bi-inbox"></i>
-        <h6>Keine Personen</h6>
-        <p class="text-muted small">Klicke "<strong>Neu</strong>" um eine Person hinzuzufügen.</p>
-      </div>
-    `;
-    return;
-  }
-
-  listDiv.innerHTML = filteredPersons.map(person => {
-    const hasBirthday = person.birthday?.trim() !== '';
-    const isActive    = editingId === person.id;
-
-    return `
-      <div class="person-card ${isActive ? 'active' : ''}" data-person-id="${person.id}">
-        <div class="person-card-header">
-          <div class="person-avatar">${person.name.charAt(0).toUpperCase()}</div>
-          <div class="person-card-info">
-            <h6 class="person-name">${person.name}</h6>
-            ${hasBirthday ? `<p class="person-birthday"><i class="bi bi-calendar"></i> ${person.birthday}</p>` : ''}
-          </div>
-        </div>
-        ${person.info ? `<p class="person-info-text">${person.info}</p>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-function renderForm() {
-  const formDiv = document.getElementById('formContent');
-  if (!formDiv) return;
-
-  if (mode === 'none') {
-    formDiv.innerHTML = `
-      <div class="persons-form-placeholder">
-        <i class="bi bi-person-plus"></i>
-        <h6>Person auswählen oder neu anlegen</h6>
-        <p class="text-muted small">
-          Wähle eine Person aus der Liste, um sie zu bearbeiten,<br>
-          oder klick "Neu" um eine neue Person hinzuzufügen.
-        </p>
-      </div>
-    `;
-    return;
-  }
-
-  const isEdit = mode === 'edit';
-  const person = isEdit ? allPersons.find(p => p.id === editingId) : null;
-
-  formDiv.innerHTML = `
-    <form class="persons-form" id="personForm">
-      <h5>
-        <i class="bi bi-${isEdit ? 'pencil-square' : 'person-plus'}"></i>
-        ${isEdit ? 'Bearbeiten' : 'Neu'}
-      </h5>
-
-      <div class="mb-3">
-        <label for="formName" class="form-label">Name <span class="text-danger">*</span></label>
-        <input type="text" class="form-control" id="formName"
-               value="${person?.name || ''}" placeholder="z.B. Anna Müller" required>
-        <small class="text-muted">Pflichtfeld</small>
-      </div>
-
-      <div class="mb-3">
-        <label for="formBirthday" class="form-label"><i class="bi bi-calendar"></i> Geburtstag</label>
-        <input type="date" class="form-control" id="formBirthday" value="${person?.birthday || ''}">
-        <small class="text-muted">Optional</small>
-      </div>
-
-      <div class="mb-3">
-        <label for="formInfo" class="form-label">Info / Notizen</label>
-        <textarea class="form-control" id="formInfo" rows="3"
-                  placeholder="z.B. Schwester, Kollege...">${person?.info || ''}</textarea>
-        <small class="text-muted">Optional</small>
-      </div>
-
-      <div class="persons-form-actions">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-check-circle"></i> Speichern
-        </button>
-        <button type="button" class="btn btn-outline-secondary" id="cancelBtn">
-          <i class="bi bi-x-circle"></i> Abbrechen
-        </button>
-        ${isEdit ? `
-          <button type="button" class="btn btn-outline-danger" id="deleteBtn">
-            <i class="bi bi-trash"></i> Löschen
-          </button>
-        ` : ''}
-      </div>
-    </form>
-  `;
-}
-
-// ---------- Event Handlers ----------
-
-/**
- * Bindet alle Event-Listener neu.
- * Wird nach jedem vollständigen Re-Render aufgerufen.
- * Setzt eventListeners zurück, um Listener-Akkumulation zu verhindern.
- */
-function attachEventListeners(ctx) {
-  removeAllListeners();
-
-  // "Neu"-Button
-  const addBtn = document.getElementById('addPersonBtn');
-  addListener(addBtn, 'click', () => {
-    mode      = 'create';
-    editingId = null;
-    renderForm();
-    bindFormEvents(ctx);
-    renderPersonsList();
-    switchToTab('edit');
-  });
-
-  // Tab-Navigation (Mobile)
-  document.querySelectorAll('.persons-tab-btn').forEach(tab => {
-    addListener(tab, 'click', (e) => {
-      const tabName = e.target.closest('.persons-tab-btn')?.dataset.tab;
-      if (tabName) switchToTab(tabName);
-    });
-  });
-
-  // Suche
-  const searchInput = document.getElementById('searchInput');
-  addListener(searchInput, 'input', (e) => {
-    const term = e.target.value.toLowerCase();
-    filteredPersons = allPersons.filter(p =>
-      p.name.toLowerCase().includes(term) ||
-      (p.info && p.info.toLowerCase().includes(term))
-    );
-    renderPersonsList();
-    attachPersonCardListeners(ctx);
-  });
-
-  attachPersonCardListeners(ctx);
-  bindFormEvents(ctx);
-}
-
-/**
- * Bindet Klick-Handler auf Personen-Karten.
- * Wird nach jedem renderPersonsList() erneut aufgerufen.
- */
-function attachPersonCardListeners(ctx) {
-  document.querySelectorAll('.person-card').forEach(card => {
-    addListener(card, 'click', () => {
-      editingId = card.dataset.personId;
-      mode      = 'edit';
-      renderForm();
-      bindFormEvents(ctx);
-      renderPersonsList();
-      attachPersonCardListeners(ctx);
-      switchToTab('edit');
-    });
-  });
-}
-
-/**
- * Bindet Submit/Cancel/Delete-Handler auf das aktuell gerenderte Formular.
- * Muss nach jedem renderForm() aufgerufen werden.
- */
-function bindFormEvents(ctx) {
-  const form = document.getElementById('personForm');
-  if (!form) return;
-
-  addListener(form, 'submit', async (e) => {
-    e.preventDefault();
-
-    const name     = document.getElementById('formName').value.trim();
-    const birthday = document.getElementById('formBirthday').value;
-    const info     = document.getElementById('formInfo').value.trim();
-
-    if (!name) {
-      showPersonsMessage('Name ist erforderlich!', 'warning');
-      return;
-    }
-
-    const userCheck = await waitForUserOnce();
-    if (!userCheck) {
-      alert('Bitte einloggen, um Personen zu speichern.');
-      window.location.href = './login.html';
-      return;
-    }
-
-    const btn = form.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichern...';
-
-    try {
-      if (mode === 'edit' && editingId) {
-        await updatePerson(editingId, { name, birthday, info });
-      } else if (mode === 'create') {
-        await createPerson({ name, birthday, info });
-      }
-
-      allPersons      = await listPersons();
-      filteredPersons = [...allPersons];
-      mode            = 'none';
-      editingId       = null;
-
-      renderPersonsList();
-      renderForm();
-      attachEventListeners(ctx);
-    } catch (err) {
-      console.error('Fehler beim Speichern:', err);
-      showPersonsMessage(`Fehler: ${err.message || err}`, 'danger');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
-    }
-  });
-
-  const cancelBtn = document.getElementById('cancelBtn');
-  addListener(cancelBtn, 'click', () => {
-    mode      = 'none';
-    editingId = null;
-    renderForm();
-    renderPersonsList();
-    attachEventListeners(ctx);
-    switchToTab('list');
-  });
-
-  const deleteBtn = document.getElementById('deleteBtn');
-  addListener(deleteBtn, 'click', async () => {
-    const personName = document.getElementById('formName').value;
-    const shouldDelete = await showDeleteConfirmModal(personName);
-    if (!shouldDelete) return;
-
-    const userCheck = await waitForUserOnce();
-    if (!userCheck) {
-      showPersonsMessage('Bitte einloggen, um Personen zu löschen.', 'warning');
-      window.location.href = './login.html';
-      return;
-    }
-
-    deleteBtn.disabled = true;
-    deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Löschen...';
-
-    try {
-      const [hasIdeas, hasGifts] = await Promise.all([
-        hasGiftIdeasByPerson(editingId),
-        hasGiftsByPerson(editingId)
-      ]);
-
-      if (hasIdeas || hasGifts) {
-        showPersonsMessage('Diese Person kann nicht gelöscht werden, weil bereits Geschenkideen oder Geschenke existieren.', 'warning');
-        deleteBtn.disabled = false;
-        deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Löschen';
-        return;
-      }
-
-      await deletePerson(editingId);
-      showPersonsMessage('Person wurde erfolgreich gelöscht.', 'success');
-
-      allPersons      = await listPersons();
-      filteredPersons = [...allPersons];
-      mode            = 'none';
-      editingId       = null;
-
-      renderPersonsList();
-      renderForm();
-      attachEventListeners(ctx);
-      switchToTab('list');
-    } catch (err) {
-      console.error('Fehler beim Löschen:', err);
-      showPersonsMessage(getDeleteFailedMessage(err), 'danger');
-      deleteBtn.disabled = false;
-      deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Löschen';
-    }
-  });
-}
-
-// ---------- Lifecycle ----------
 
 export function destroy() {
   if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
@@ -512,8 +613,14 @@ export function destroy() {
     clearTimeout(messageTimer);
     messageTimer = null;
   }
-  allPersons      = [];
+
+  allPersons = [];
   filteredPersons = [];
-  editingId       = null;
-  mode            = 'none';
+  allGiftIdeas = [];
+  allGifts = [];
+  allPastGifts = [];
+  mode = 'none';
+  editingId = null;
+  currentlyOpenPersonId = null;
+  currentCtx = null;
 }
