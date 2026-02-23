@@ -79,8 +79,9 @@ export async function createGiftIdea({
   personName,
   occasionId = "",
   occasionName = "",
-  giftname = "",
-  notes = "",
+  giftName = "",
+  note = "",
+  date = "",
   type = "text",
   content,
   status = "offen"
@@ -98,8 +99,9 @@ export async function createGiftIdea({
     personName: pname,
     occasionId: normalizeString(occasionId),
     occasionName: normalizeString(occasionName),
-    giftname: normalizeString(giftname),
-    notes: normalizeString(notes),
+    giftName: normalizeString(giftName),
+    note: normalizeString(note),
+    date: normalizeString(date),
     type,
     content: validateContentByType(type, content),
     status,
@@ -148,9 +150,11 @@ export async function updateGiftIdea(id, patch = {}) {
   if (patch.personName !== undefined) out.personName = requireNonEmpty("personName", patch.personName);
   if (patch.occasionId !== undefined) out.occasionId = normalizeString(patch.occasionId);
   if (patch.occasionName !== undefined) out.occasionName = normalizeString(patch.occasionName);
-  if (patch.giftname !== undefined) out.giftname = normalizeString(patch.giftname);
-  if (patch.notes !== undefined) out.notes = normalizeString(patch.notes);
-
+  if (patch.giftName !== undefined) out.giftName = normalizeString(patch.giftName); 
+  if (patch.note !== undefined) out.note = normalizeString(patch.note);
+  if (patch.date !== undefined) out.date = normalizeString(patch.date);
+  
+  
   if (patch.type !== undefined) {
     if (!isValidType(patch.type)) throw new Error("Ungültiger Typ.");
     out.type = patch.type;

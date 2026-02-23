@@ -351,7 +351,7 @@ function renderIdeaCard(item) {
   const statusBadge = item.status === 'erledigt' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
   const statusText  = item.status === 'erledigt' ? 'Erledigt' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
   const cardTitle   = item.giftName || item.occasionName || 'Geschenkidee';
-  const detailsText = item.note || (!item.giftName ? item.content : '');
+  const detailsText = item.note || (!(item.giftName) ? item.content : '');
 
   let contentPreview = '';
   if (item.imageUrl) {
@@ -435,6 +435,7 @@ function renderConvertForm(formDiv) {
   const idea = ideas.find(i => i.id === convertIdeaId);
   if (!idea) { formMode = 'none'; renderForm(); return; }
   const defaultGiftName = (idea.giftName || idea.content || '').trim();
+  const defaultConvertDate = idea.date || '';
 
   formDiv.innerHTML = `
     <div class="card">
@@ -460,7 +461,8 @@ function renderConvertForm(formDiv) {
           <div class="mb-3">
             <label class="form-label">Datum <span class="text-danger">*</span></label>
             <div class="input-group">
-              <input type="date" id="convertDate" class="form-control" required style="cursor: pointer;">
+              <input type="date" id="convertDate" class="form-control" required
+                     value="${defaultConvertDate}" style="cursor: pointer;">
               <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
             </div>
             <small class="text-muted">
@@ -587,16 +589,24 @@ function renderEntityForm(formDiv) {
       dateGroup.style.cursor = 'pointer';
       dateGroup.addEventListener('click', () => dateInput.showPicker?.());
     }
+  } else if (currentTab === 'ideas') {
+    const ideaDateInput = document.getElementById('formIdeaDate');
+    const ideaDateGroup = ideaDateInput?.closest('.input-group');
+    if (ideaDateGroup) {
+      ideaDateGroup.style.cursor = 'pointer';
+      ideaDateGroup.addEventListener('click', () => ideaDateInput.showPicker?.());
+    }
   }
 }
 
 function renderIdeaFormFields(item) {
   const ideaGiftName = item
-    ? (item.giftName || (!item.note ? item.content : '') || '')
+    ? (item.giftName || (!(item.note) ? item.content : '') || '')
     : '';
   const ideaDetails = item
-    ? (item.note || (!item.giftName ? item.content : '') || '')
+    ? (item.note || (!(item.giftName) ? item.content : '') || '')
     : '';
+  const ideaDate = item?.date || '';
 
   return `
     <div class="mb-3">
@@ -610,6 +620,16 @@ function renderIdeaFormFields(item) {
       <label class="form-label">Zusätzliche Informationen</label>
       <textarea id="formNote" class="form-control" rows="3"
                 placeholder="Optional: Details zur Geschenkidee">${ideaDetails}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Datum (optional)</label>
+      <div class="input-group">
+        <input type="date" id="formIdeaDate" class="form-control"
+               value="${ideaDate}" style="cursor: pointer;">
+        <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
+      </div>
+      <small class="text-muted">Wird beim Konvertieren als Geschenkdatum vorgeschlagen.</small>
     </div>
 
     <div class="mb-3">
@@ -809,6 +829,8 @@ async function handleFormSubmit(e, ctx) {
         await createGift({ personId, personName, occasionId, occasionName, giftName, date, note, status });
       }
     } else {
+      const ideaDate = document.getElementById('formIdeaDate')?.value || '';
+
       if (!personId) {
         alert('Person ist erforderlich');
         btn.disabled = false;
@@ -828,9 +850,13 @@ async function handleFormSubmit(e, ctx) {
       const content = note || giftName || '';
 
       if (formMode === 'edit' && editingItem) {
-        await updateGiftIdea(editingItem, { personId, personName, occasionId, occasionName, giftName, type, content, note, status });
+        await updateGiftIdea(editingItem, {
+          personId, personName, occasionId, occasionName, giftName, type, content, note, date: ideaDate, status
+        });
       } else {
-        await createGiftIdea({ personId, personName, occasionId, occasionName, giftName, type, content, note, status });
+        await createGiftIdea({
+          personId, personName, occasionId, occasionName, giftName, type, content, note, date: ideaDate, status
+        });
       }
     }
 
