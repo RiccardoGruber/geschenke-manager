@@ -19,6 +19,7 @@ let editingId       = null;
 let mode            = 'none'; // 'none' | 'create' | 'edit'
 let eventListeners  = [];
 let messageTimer    = null;
+let activeDeleteModalCleanup = null;
 
 // ---------- Helpers ----------
 
@@ -41,6 +42,91 @@ function removeAllListeners() {
     if (element) element.removeEventListener(event, handler);
   });
   eventListeners = [];
+}
+
+function showDeleteConfirmModal(personName = '') {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="personDeleteModalTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="personDeleteModalTitle" class="mb-0">
+            <i class="bi bi-exclamation-triangle text-danger"></i> Person löschen
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="mb-2">Moechtest du diese Person wirklich löschen?</p>
+          <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
+          <button type="button" class="btn btn-danger" data-action="confirm">
+            <i class="bi bi-trash"></i> Löschen
+          </button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+    const confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+    const nameEl = backdrop.querySelector('.occasion-delete-modal-name');
+
+    if (personName) nameEl.textContent = `Person: "${personName}"`;
+    else nameEl.remove();
+
+    const finish = (result) => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      confirmBtn.removeEventListener('click', onConfirm);
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeDeleteModalCleanup === finish) activeDeleteModalCleanup = null;
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onCancel();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+
+    activeDeleteModalCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    confirmBtn.addEventListener('click', onConfirm);
+
+    modalEl.focus?.();
+    confirmBtn.focus();
+  });
+}
+
+function getDeleteFailedMessage(err) {
+  const raw = String(err?.message || err || '').toLowerCase();
+  if (raw.includes('permission') || raw.includes('unauthorized')) {
+    return 'Die Person kann nicht geloescht werden. Es fehlen Berechtigungen.';
+  }
+  if (raw.includes('kein eingeloggter benutzer') || raw.includes('auth')) {
+    return 'Die Person kann nicht geloescht werden. Bitte erneut einloggen.';
+  }
+  if (raw.includes('id fehlt')) {
+    return 'Die Person kann nicht geloescht werden. Die ID fehlt.';
+  }
+  return `Die Person kann nicht geloescht werden: ${err?.message || err}`;
 }
 
 /** Wechselt den sichtbaren Tab (nur Mobile < 992px). */
@@ -370,7 +456,8 @@ function bindFormEvents(ctx) {
   const deleteBtn = document.getElementById('deleteBtn');
   addListener(deleteBtn, 'click', async () => {
     const personName = document.getElementById('formName').value;
-    if (!confirm(`Möchtest du "${personName}" wirklich löschen?`)) return;
+    const shouldDelete = await showDeleteConfirmModal(personName);
+    if (!shouldDelete) return;
 
     const userCheck = await waitForUserOnce();
     if (!userCheck) {
@@ -409,7 +496,7 @@ function bindFormEvents(ctx) {
       switchToTab('list');
     } catch (err) {
       console.error('Fehler beim Löschen:', err);
-      showPersonsMessage(`Fehler beim Löschen: ${err.message || err}`, 'danger');
+      showPersonsMessage(getDeleteFailedMessage(err), 'danger');
       deleteBtn.disabled = false;
       deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Löschen';
     }
@@ -419,6 +506,7 @@ function bindFormEvents(ctx) {
 // ---------- Lifecycle ----------
 
 export function destroy() {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
   removeAllListeners();
   if (messageTimer) {
     clearTimeout(messageTimer);

@@ -25,6 +25,7 @@ let eventListeners = [];
 let editingItem   = null;
 let formMode      = 'none';  // 'none' | 'create' | 'edit' | 'convert'
 let convertIdeaId = null;
+let activeDeleteModalCleanup = null;
 
 // Feste Anlässe (immer verfügbar, unabhängig von DB-Daten)
 const FIXED_OCCASIONS = [
@@ -43,6 +44,91 @@ function addListener(el, evt, fn) {
 function removeAllListeners() {
   eventListeners.forEach(({ el, evt, fn }) => el.removeEventListener(evt, fn));
   eventListeners = [];
+}
+
+function showDeleteConfirmModal(itemLabel = '') {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="giftDeleteModalTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="giftDeleteModalTitle" class="mb-0">
+            <i class="bi bi-exclamation-triangle text-danger"></i> Eintrag löschen
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="mb-2">Moechtest du diesen Eintrag wirklich löschen?</p>
+          <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
+          <button type="button" class="btn btn-danger" data-action="confirm">
+            <i class="bi bi-trash"></i> Löschen
+          </button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+    const confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+    const nameEl = backdrop.querySelector('.occasion-delete-modal-name');
+
+    if (itemLabel) nameEl.textContent = `Eintrag: "${itemLabel}"`;
+    else nameEl.remove();
+
+    const finish = (result) => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      confirmBtn.removeEventListener('click', onConfirm);
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeDeleteModalCleanup === finish) activeDeleteModalCleanup = null;
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onCancel();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+
+    activeDeleteModalCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    confirmBtn.addEventListener('click', onConfirm);
+
+    modalEl.focus?.();
+    confirmBtn.focus();
+  });
+}
+
+function getDeleteFailedMessage(err, label = 'Der Eintrag') {
+  const raw = String(err?.message || err || '').toLowerCase();
+  if (raw.includes('permission') || raw.includes('unauthorized')) {
+    return `${label} konnte nicht geloescht werden. Es fehlen Berechtigungen.`;
+  }
+  if (raw.includes('kein eingeloggter benutzer') || raw.includes('auth')) {
+    return `${label} konnte nicht geloescht werden. Bitte erneut einloggen.`;
+  }
+  if (raw.includes('id fehlt')) {
+    return `${label} konnte nicht geloescht werden. Die ID fehlt.`;
+  }
+  return `${label} konnte nicht geloescht werden: ${err?.message || err}`;
 }
 
 /**
@@ -802,7 +888,11 @@ async function handleConvertSubmit(e, ctx) {
 }
 
 async function handleDelete(ctx) {
-  if (!confirm('Wirklich löschen?')) return;
+  const source = currentTab === 'gifts' ? gifts : ideas;
+  const item = source.find(x => x.id === editingItem);
+  const itemLabel = item?.giftName || item?.occasionName || item?.personName || '';
+  const shouldDelete = await showDeleteConfirmModal(itemLabel);
+  if (!shouldDelete) return;
 
   const user = await waitForUserOnce();
   if (!user) { window.location.href = './login.html'; return; }
@@ -821,7 +911,8 @@ async function handleDelete(ctx) {
     attachEventListeners(ctx);
   } catch (err) {
     console.error(err);
-    alert('Fehler: ' + err.message);
+    const label = currentTab === 'gifts' ? 'Das Geschenk' : 'Die Geschenkidee';
+    alert(getDeleteFailedMessage(err, label));
   }
 }
 
@@ -840,12 +931,16 @@ function attachListListeners() {
   document.querySelectorAll('#listContainer .delete-btn').forEach(btn => {
     addListener(btn, 'click', async (e) => {
       e.preventDefault();
-      if (!confirm('Wirklich löschen?')) return;
+      const id = btn.closest('[data-id]').dataset.id;
+      const source = currentTab === 'gifts' ? gifts : ideas;
+      const item = source.find(x => x.id === id);
+      const itemLabel = item?.giftName || item?.occasionName || item?.personName || '';
+      const shouldDelete = await showDeleteConfirmModal(itemLabel);
+      if (!shouldDelete) return;
 
       const user = await waitForUserOnce();
       if (!user) { window.location.href = './login.html'; return; }
 
-      const id = btn.closest('[data-id]').dataset.id;
       try {
         if (currentTab === 'gifts') await deleteGift(id);
         else                        await deleteGiftIdea(id);
@@ -855,7 +950,8 @@ function attachListListeners() {
         attachListListeners();
       } catch (err) {
         console.error(err);
-        alert('Fehler: ' + err.message);
+        const label = currentTab === 'gifts' ? 'Das Geschenk' : 'Die Geschenkidee';
+        alert(getDeleteFailedMessage(err, label));
       }
     });
   });
@@ -928,6 +1024,7 @@ export async function render(container, ctx) {
 }
 
 export function destroy() {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
   removeAllListeners();
   gifts = []; ideas = []; persons = []; occasions = [];
   editingItem   = null;

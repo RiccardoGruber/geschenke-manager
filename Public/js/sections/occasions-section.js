@@ -26,6 +26,7 @@ let allPersons        = [];
 let editingId         = null;
 let mode              = 'none'; // 'none' | 'create' | 'edit'
 let eventListeners    = [];
+let activeDeleteModalCleanup = null;
 
 let filters = {
   search:    '',
@@ -78,6 +79,82 @@ function addListener(el, evt, fn) {
 function removeAllListeners() {
   eventListeners.forEach(({ el, evt, fn }) => el.removeEventListener(evt, fn));
   eventListeners = [];
+}
+
+// ---------- Delete Confirmation Modal ----------
+
+function showDeleteConfirmModal(name = '') {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="occasionDeleteModalTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="occasionDeleteModalTitle" class="mb-0">
+            <i class="bi bi-exclamation-triangle text-danger"></i> Anlass löschen
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="mb-2">Moechtest du diesen Anlass wirklich löschen?</p>
+          <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
+          <button type="button" class="btn btn-danger" data-action="confirm">
+            <i class="bi bi-trash"></i> Löschen
+          </button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+    const confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+    const nameEl = backdrop.querySelector('.occasion-delete-modal-name');
+
+    if (name) {
+      nameEl.textContent = `Anlass: "${name}"`;
+    } else {
+      nameEl.remove();
+    }
+
+    const finish = (result) => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      confirmBtn.removeEventListener('click', onConfirm);
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeDeleteModalCleanup === finish) activeDeleteModalCleanup = null;
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onCancel();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+
+    activeDeleteModalCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    confirmBtn.addEventListener('click', onConfirm);
+
+    modalEl.focus?.();
+    confirmBtn.focus();
+  });
 }
 
 // ---------- Public API ----------
@@ -514,7 +591,9 @@ function attachEventListeners(ctx) {
   });
 
   addListener(document.getElementById('deleteBtn'), 'click', async () => {
-    if (!confirm('Möchtest du diesen Anlass wirklich löschen?')) return;
+    const item = allOccasions.find(o => o.id === editingId);
+    const shouldDelete = await showDeleteConfirmModal(item?.name || '');
+    if (!shouldDelete) return;
 
     const user = await waitForUserOnce();
     if (!user) { window.location.href = './login.html'; return; }
@@ -555,12 +634,15 @@ function attachListListeners() {
   document.querySelectorAll('#listContainer .delete-btn').forEach(btn => {
     addListener(btn, 'click', async (e) => {
       e.preventDefault();
-      if (!confirm('Möchtest du diesen Anlass wirklich löschen?')) return;
+
+      const id = btn.closest('[data-id]').dataset.id;
+      const occ = allOccasions.find(o => o.id === id);
+      const shouldDelete = await showDeleteConfirmModal(occ?.name || '');
+      if (!shouldDelete) return;
 
       const user = await waitForUserOnce();
       if (!user) { window.location.href = './login.html'; return; }
 
-      const id = btn.closest('[data-id]').dataset.id;
       try {
         await deleteOccasion(id);
         allOccasions = await listOccasions();
@@ -605,6 +687,7 @@ function attachListListeners() {
 // ---------- Lifecycle ----------
 
 export function destroy() {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
   removeAllListeners();
   allOccasions      = [];
   filteredOccasions = [];
@@ -612,3 +695,4 @@ export function destroy() {
   editingId         = null;
   mode              = 'none';
 }
+

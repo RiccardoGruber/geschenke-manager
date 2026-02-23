@@ -1369,6 +1369,65 @@
   color: var(--text-secondary);
 }
 
+.occasion-delete-modal-open {
+  overflow: hidden;
+}
+
+.occasion-delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.occasion-delete-modal {
+  width: min(100%, 460px);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.occasion-delete-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.occasion-delete-modal-body {
+  padding: 1rem 1.25rem 0.75rem;
+}
+
+.occasion-delete-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem 1.25rem;
+}
+
+@media (max-width: 576px) {
+  .occasion-delete-modal {
+    width: 100%;
+  }
+
+  .occasion-delete-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .occasion-delete-modal-actions .btn {
+    width: 100%;
+  }
+}
+
 /* ========================================
    PERSONS SECTION - Neue Styles
    ======================================== */
