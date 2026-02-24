@@ -10,6 +10,9 @@ import * as personsSection   from './sections/persons-section.js';
 import * as occasionsSection from './sections/occasions-section.js';
 import * as giftsSection     from './sections/gifts-section.js';
 import * as settingsSection  from './sections/settings-section.js';
+import { listPersons } from './person-service.js';
+import { listOccasions } from './occasion-service.js';
+import { listGiftIdeas } from './gift-idea-service.js';
 
 // Section-Map für sauberes Routing ohne If-Kette
 const SECTIONS = {
@@ -19,6 +22,8 @@ const SECTIONS = {
   gifts:     giftsSection,
   settings:  settingsSection,
 };
+
+const READ_NOTIFICATIONS_STORAGE_KEY = 'readNotificationsV1';
 
 class DashboardController {
   constructor() {
@@ -33,6 +38,8 @@ class DashboardController {
     this.contentArea       = document.getElementById('contentArea');
     this.logoutBtn         = document.getElementById('logoutBtn');
     this.profileSettings   = document.getElementById('profileSettings');
+    this.notificationBell  = document.getElementById('notificationBell');
+    this.notificationBadge = document.getElementById('notificationBadge');
 
     this.init();
   }
@@ -45,6 +52,7 @@ class DashboardController {
     }
 
     this.updateProfile();
+    await this.updateNotificationBellCount();
     this.registerEventListeners();
 
     const startSection = localStorage.getItem('defaultSection') || 'dashboard';
@@ -95,6 +103,55 @@ class DashboardController {
     profileAvatar.textContent = initials;
   }
 
+  async updateNotificationBellCount() {
+    if (!this.notificationBadge) return;
+
+    try {
+      const [persons, occasions, giftIdeas] = await Promise.all([
+        listPersons().catch(() => []),
+        listOccasions().catch(() => []),
+        listGiftIdeas().catch(() => [])
+      ]);
+
+      const upcomingBirthdays = dashboardSection.getUpcomingBirthdays(persons, giftIdeas, occasions);
+      const christmasStatus = dashboardSection.getChristmasStatus(persons, giftIdeas, occasions);
+      const notificationEntries = dashboardSection.getNotificationEntries(upcomingBirthdays, christmasStatus);
+      const readNotifications = this.getReadNotifications();
+      const unreadCount = dashboardSection.getUnreadNotificationCount(notificationEntries, readNotifications);
+
+      this.notificationBadge.textContent = String(unreadCount);
+      this.notificationBadge.classList.toggle('bg-danger', unreadCount > 0);
+      this.notificationBadge.classList.toggle('bg-success', unreadCount === 0);
+    } catch (err) {
+      console.warn('Benachrichtigungszähler konnte nicht geladen werden:', err);
+      this.notificationBadge.textContent = '0';
+      this.notificationBadge.classList.remove('bg-danger');
+      this.notificationBadge.classList.add('bg-success');
+    }
+  }
+
+  getReadNotifications() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(READ_NOTIFICATIONS_STORAGE_KEY) || '{}');
+      if (!parsed || typeof parsed !== 'object') return {};
+      return parsed;
+    } catch {
+      return {};
+    }
+  }
+
+  setReadNotifications(readNotifications) {
+    localStorage.setItem(READ_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(readNotifications || {}));
+  }
+
+  markNotificationRead(notificationId) {
+    if (!notificationId) return;
+    const readNotifications = this.getReadNotifications();
+    readNotifications[notificationId] = Date.now();
+    this.setReadNotifications(readNotifications);
+    this.updateNotificationBellCount();
+  }
+
   // ---- Events ----
 
   registerEventListeners() {
@@ -128,6 +185,11 @@ class DashboardController {
       e.preventDefault();
       this.dropdownMenu.classList.remove('show');
       this.switchSection('settings');
+    });
+
+    this.notificationBell?.addEventListener('click', async () => {
+      this.dropdownMenu?.classList.remove('show');
+      await this.switchSection('dashboard');
     });
   }
 
@@ -164,6 +226,8 @@ class DashboardController {
       navigate:       (sec, params) => this.switchSection(sec, params),
       params:         this.currentParams || {},
       updateProfile:  () => this.updateProfile(),
+      getReadNotifications: () => this.getReadNotifications(),
+      markNotificationRead: (id) => this.markNotificationRead(id),
     };
 
     const module = SECTIONS[section];
@@ -175,6 +239,7 @@ class DashboardController {
       if (section === 'dashboard') this.resetPageHeader();
 
       await module.render(this.contentArea, ctx);
+      await this.updateNotificationBellCount();
     } catch (err) {
       console.error('Fehler beim Laden der Sektion:', err);
       this.contentArea.innerHTML = `

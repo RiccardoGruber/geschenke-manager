@@ -79,6 +79,41 @@
             border-left: 1px solid #ecf0f1;
         }
 
+        .notification-bell {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #f1f3f5;
+            color: #2c3e50;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .notification-bell:hover {
+            background: #e9ecef;
+            color: #1d6fa5;
+            transform: translateY(-1px);
+        }
+
+        .notification-bell .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+        }
+
         .profile-avatar {
             width: 40px;
             height: 40px;
@@ -269,6 +304,10 @@
         </nav>
 
         <div class="dashboard-profile">
+            <button class="notification-bell" id="notificationBell" type="button" title="Benachrichtigungen">
+                <i class="bi bi-bell"></i>
+                <span class="badge bg-danger" id="notificationBadge">0</span>
+            </button>
             <div class="profile-dropdown">
                 <div class="profile-menu" id="profileMenuToggle">
                     <div class="profile-avatar" id="profileAvatar"></div>

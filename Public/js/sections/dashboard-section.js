@@ -88,6 +88,10 @@ function _isDateInChristmasSeason(today = new Date()) {
   return t >= start && t <= end;
 }
 
+function _notificationKey(parts) {
+  return parts.map((p) => String(p ?? '')).join('|');
+}
+
 // ---------- Notification Logic ----------
 
 export function getUpcomingBirthdays(persons, giftIdeas, occasions, today = new Date()) {
@@ -219,28 +223,75 @@ export function getChristmasStatus(persons, giftIdeas, occasions, today = new Da
   return {
     inSeason,
     items,
-    openCount
+    openCount,
+    seasonYear: today.getFullYear()
   };
 }
 
-export function renderNotifications(upcomingBirthdays, christmasStatus) {
-  const birthdayOpenCount = upcomingBirthdays.reduce((sum, entry) => {
-    return sum + (entry.hasIdeas ? 0 : 1);
-  }, 0);
+export function getNotificationEntries(upcomingBirthdays, christmasStatus) {
+  const birthdayEntries = (upcomingBirthdays || []).map((entry) => {
+    const dateKey = entry?.birthdayDate
+      ? [
+          entry.birthdayDate.getFullYear(),
+          String(entry.birthdayDate.getMonth() + 1).padStart(2, '0'),
+          String(entry.birthdayDate.getDate()).padStart(2, '0')
+        ].join('-')
+      : 'unknown';
 
-  const badgeCount = birthdayOpenCount + christmasStatus.openCount;
-  const badgeHtml = badgeCount > 0
-    ? `<span class="badge rounded-pill bg-danger ms-2">${badgeCount}</span>`
+    return {
+      id: _notificationKey([
+        'birthday',
+        entry.personId,
+        dateKey,
+        entry.hasIdeas ? 1 : 0,
+        entry.ideas?.length || 0
+      ]),
+      personId: entry.personId,
+      category: 'Geburtstag'
+    };
+  });
+
+  const christmasEntries = (!christmasStatus?.inSeason ? [] : (christmasStatus.items || []))
+    .filter((item) => item.hasOpen)
+    .map((item) => ({
+      id: _notificationKey([
+        'christmas',
+        christmasStatus.seasonYear || new Date().getFullYear(),
+        item.personId,
+        item.hasIdeas ? 1 : 0,
+        item.statusCounts?.offen || 0,
+        item.statusCounts?.besorgt || 0,
+        item.statusCounts?.erledigt || 0
+      ]),
+      personId: item.personId,
+      category: 'Weihnachten'
+    }));
+
+  return [...birthdayEntries, ...christmasEntries];
+}
+
+export function getUnreadNotificationCount(entries, readNotifications = {}) {
+  return (entries || []).reduce((sum, entry) => sum + (readNotifications?.[entry.id] ? 0 : 1), 0);
+}
+
+export function renderNotifications(upcomingBirthdays, christmasStatus, readNotifications = {}) {
+  const notificationEntries = getNotificationEntries(upcomingBirthdays, christmasStatus);
+  const unreadCount = getUnreadNotificationCount(notificationEntries, readNotifications);
+  const badgeHtml = unreadCount > 0
+    ? `<span class="badge rounded-pill bg-danger ms-2">${unreadCount}</span>`
     : `<span class="badge rounded-pill bg-success ms-2">0</span>`;
 
   const birthdaysHtml = upcomingBirthdays.length ? upcomingBirthdays.map((entry) => {
+    const notif = notificationEntries.find((n) => n.category === 'Geburtstag' && n.personId === entry.personId);
+    const isRead = !!readNotifications?.[notif?.id];
     const subtitle = entry.hasIdeas
       ? `${entry.ideas.length} Idee${entry.ideas.length === 1 ? '' : 'n'} vorhanden`
       : 'Keine Geschenkidee vorhanden';
     const subtitleClass = entry.hasIdeas ? 'text-muted' : 'text-warning';
 
     return `
-      <div class="border rounded-3 p-2 mb-2 bg-white"
+      <div class="border rounded-3 p-2 mb-2 bg-white notification-entry ${isRead ? 'notification-read' : 'notification-unread'}"
+           data-notification-id="${_escapeHtml(notif?.id || '')}"
            data-notification-person="${_escapeHtml(entry.personId || '')}"
            style="cursor:pointer;">
         <div class="d-flex align-items-start gap-2">
@@ -250,7 +301,12 @@ export function renderNotifications(upcomingBirthdays, christmasStatus) {
             <div class="small text-muted">${_formatDateLong(entry.birthdayDate)}</div>
             <div class="small ${subtitleClass}">${subtitle}</div>
           </div>
-          <span class="badge bg-light text-dark">Geburtstag</span>
+          <div class="d-flex flex-column align-items-end gap-1">
+            <span class="badge bg-light text-dark">Geburtstag</span>
+            <span class="badge ${isRead ? 'bg-secondary' : 'bg-primary'} notification-read-indicator">
+              ${isRead ? 'Gelesen' : 'Neu'}
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -270,13 +326,16 @@ export function renderNotifications(upcomingBirthdays, christmasStatus) {
   } else {
     const openItems = christmasStatus.items.filter((item) => item.hasOpen);
     christmasHtml = openItems.length ? openItems.map((item) => {
+      const notif = notificationEntries.find((n) => n.category === 'Weihnachten' && n.personId === item.personId);
+      const isRead = !!readNotifications?.[notif?.id];
       const text = item.hasIdeas
         ? `offen: ${item.statusCounts.offen}, besorgt: ${item.statusCounts.besorgt}, erledigt: ${item.statusCounts.erledigt}`
         : 'Keine Geschenkidee vorhanden';
       const textClass = item.hasIdeas ? 'text-muted' : 'text-warning';
 
       return `
-        <div class="border rounded-3 p-2 mb-2 bg-white"
+        <div class="border rounded-3 p-2 mb-2 bg-white notification-entry ${isRead ? 'notification-read' : 'notification-unread'}"
+             data-notification-id="${_escapeHtml(notif?.id || '')}"
              data-notification-person="${_escapeHtml(item.personId || '')}"
              style="cursor:pointer;">
           <div class="d-flex align-items-start gap-2">
@@ -285,7 +344,12 @@ export function renderNotifications(upcomingBirthdays, christmasStatus) {
               <div class="fw-semibold">${_escapeHtml(item.personName)}</div>
               <div class="small ${textClass}">${text}</div>
             </div>
-            <span class="badge bg-light text-dark">Weihnachten</span>
+            <div class="d-flex flex-column align-items-end gap-1">
+              <span class="badge bg-light text-dark">Weihnachten</span>
+              <span class="badge ${isRead ? 'bg-secondary' : 'bg-primary'} notification-read-indicator">
+                ${isRead ? 'Gelesen' : 'Neu'}
+              </span>
+            </div>
           </div>
         </div>
       `;
@@ -428,10 +492,12 @@ function registerQuickActions(container, ctx) {
 function registerNotificationNav(container, ctx) {
   container.querySelectorAll('[data-notification-person]').forEach((entry) => {
     const personId = entry.getAttribute('data-notification-person');
+    const notificationId = entry.getAttribute('data-notification-id');
     if (!personId) return;
 
     const handler = (e) => {
       e.preventDefault();
+      if (notificationId) ctx.markNotificationRead?.(notificationId);
       ctx.navigate('persons', { id: personId });
     };
     entry.addEventListener('click', handler);
@@ -486,7 +552,11 @@ export async function render(container, ctx) {
 
   const upcomingBirthdays = getUpcomingBirthdays(persons, giftIdeas, occasions);
   const christmasStatus = getChristmasStatus(persons, giftIdeas, occasions);
-  const notificationsHtml = renderNotifications(upcomingBirthdays, christmasStatus);
+  const notificationsHtml = renderNotifications(
+    upcomingBirthdays,
+    christmasStatus,
+    ctx.getReadNotifications?.() || {}
+  );
 
   const quickHtml = renderQuickActionsCard();
   const upcomingHtml = renderNextOccasionsCard(
