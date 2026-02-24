@@ -1,4 +1,4 @@
-/**
+﻿/**
  * gifts-section.js
  * -------------------------------------------------------
  * Geschenke & Geschenkideen Verwaltung
@@ -8,6 +8,7 @@
 import { listGifts, createGift, updateGift, deleteGift, listPastGifts } from '../gift-service.js';
 import { listGiftIdeas, createGiftIdea, updateGiftIdea, deleteGiftIdea } from '../gift-idea-service.js';
 import { convertIdeaToGift }                                            from '../gift-convert.js';
+import { generateIdeasForPerson }                                       from '../suggestion-service.js';
 import { createShareLinkGiftIdeasByPerson }                             from '../share-service.js';
 import { listPersons }                                                   from '../person-service.js';
 import { listOccasions }                                                 from '../occasion-service.js';
@@ -31,8 +32,11 @@ let focusItemId = null;
 let activeDeleteModalCleanup = null;
 let activeSharePickerCleanup = null;
 let activeShareResultCleanup = null;
+let generatedSuggestions = [];
+let generatedForPersonId = '';
+let selectedGeneratedSuggestionIds = new Set();
 
-// Feste Anlässe (immer verfügbar, unabhängig von DB-Daten)
+// Feste AnlÃ¤sse (immer verfÃ¼gbar, unabhÃ¤ngig von DB-Daten)
 const FIXED_OCCASIONS = [
   { id: 'geburtstag',  name: 'Geburtstag' },
   { id: 'weihnachten', name: 'Weihnachten' }
@@ -61,18 +65,18 @@ function showDeleteConfirmModal(itemLabel = '') {
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="giftDeleteModalTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
           <h5 id="giftDeleteModalTitle" class="mb-0">
-            <i class="bi bi-exclamation-triangle text-danger"></i> Eintrag löschen
+            <i class="bi bi-exclamation-triangle text-danger"></i> Eintrag lÃ¶schen
           </h5>
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">Moechtest du diesen Eintrag wirklich löschen?</p>
+          <p class="mb-2">Moechtest du diesen Eintrag wirklich lÃ¶schen?</p>
           <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
         </div>
         <div class="occasion-delete-modal-actions">
           <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
           <button type="button" class="btn btn-danger" data-action="confirm">
-            <i class="bi bi-trash"></i> Löschen
+            <i class="bi bi-trash"></i> LÃ¶schen
           </button>
         </div>
       </div>
@@ -146,12 +150,12 @@ function showPersonSharePickerModal() {
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="sharePersonPickerTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
           <h5 id="sharePersonPickerTitle" class="mb-0">
-            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wählen
+            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wÃ¤hlen
           </h5>
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="text-muted small mb-3">Wähle die Person, deren Geschenkideen geteilt werden sollen.</p>
+          <p class="text-muted small mb-3">WÃ¤hle die Person, deren Geschenkideen geteilt werden sollen.</p>
           <div class="share-person-list">
             ${persons.map((p) => `
               <button type="button" class="share-person-option" data-person-id="${p.id}">
@@ -337,8 +341,103 @@ async function handleShareIdeasByPerson() {
   }
 }
 
+async function handleGenerateIdeasFromSuggestions() {
+  if (currentTab !== 'ideas') return;
+
+  let personId = filters.person;
+  if (!personId || personId === 'all') {
+    showUiPopup('Bitte zuerst eine Person im Filter auswählen.', 'warning');
+    return;
+  }
+
+  const personName = persons.find(p => p.id === personId)?.name || '';
+  if (!personName) {
+    showUiPopup('Die ausgewählte Person konnte nicht gefunden werden.', 'error');
+    return;
+  }
+
+  const sourceIdeas = ideas.filter(i => i.personId === personId);
+  const sourcePastGifts = getPastDisplayGifts().filter(g => g.personId === personId);
+
+  const generated = generateIdeasForPerson({
+    personId,
+    personName,
+    pastGifts: sourcePastGifts,
+    existingIdeas: sourceIdeas
+  });
+
+  generatedSuggestions = generated.map((s, idx) => ({
+    ...s,
+    _id: buildGeneratedSuggestionId(s, idx)
+  }));
+  generatedForPersonId = personId;
+  selectedGeneratedSuggestionIds = new Set(generatedSuggestions.map(s => s._id));
+
+  renderList();
+  attachListListeners();
+  if (!generatedSuggestions.length) {
+    showUiPopup('Es konnten keine neuen Vorschläge generiert werden.', 'warning');
+    return;
+  }
+  showUiPopup(`${generatedSuggestions.length} Ideen wurden generiert.`, 'success');
+}
+
+async function handleAdoptGeneratedSuggestions() {
+  if (currentTab !== 'ideas' || !generatedSuggestions.length) return;
+  const selected = generatedSuggestions.filter(s => selectedGeneratedSuggestionIds.has(s._id));
+  if (!selected.length) {
+    showUiPopup('Bitte wähle mindestens einen Vorschlag aus.', 'warning');
+    return;
+  }
+
+  const person = persons.find(p => p.id === generatedForPersonId);
+  if (!person) {
+    showUiPopup('Die Person zu den Vorschlägen wurde nicht gefunden.', 'error');
+    return;
+  }
+
+  const existingContent = new Set(
+    ideas
+      .filter(i => i.personId === generatedForPersonId)
+      .map(i => String(i.content || '').trim().toLowerCase())
+  );
+
+  let adoptedCount = 0;
+  for (const suggestion of selected) {
+    const normalizedContent = String(suggestion.content || '').trim().toLowerCase();
+    if (normalizedContent && existingContent.has(normalizedContent)) continue;
+
+    await createGiftIdea({
+      personId: generatedForPersonId,
+      personName: person.name || '',
+      occasionId: suggestion.occasionId || '',
+      occasionName: suggestion.occasionName || '',
+      giftName: suggestion.title || '',
+      type: suggestion.type || 'text',
+      content: suggestion.content || suggestion.title || '',
+      note: '',
+      date: '',
+      status: 'offen'
+    });
+
+    if (normalizedContent) existingContent.add(normalizedContent);
+    adoptedCount += 1;
+  }
+
+  await loadData();
+  clearGeneratedSuggestions();
+  renderList();
+  attachListListeners();
+
+  if (!adoptedCount) {
+    showUiPopup('Keine neuen Ideen übernommen (bereits vorhanden).', 'warning');
+    return;
+  }
+  showUiPopup(`${adoptedCount} Ideen wurden übernommen.`, 'success');
+}
+
 /**
- * Entfernt aus DB-Anlässen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
+ * Entfernt aus DB-AnlÃ¤ssen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
  */
 function getDeduplicatedOccasions() {
   const fixedNames = FIXED_OCCASIONS.map(o => o.name.toLowerCase());
@@ -355,6 +454,149 @@ function getDeduplicatedOccasions() {
 
 function showLoading(show) {
   document.getElementById('giftsLoading')?.classList.toggle('d-none', !show);
+}
+
+function isHttpUrl(value) {
+  const url = String(value || '').trim();
+  return /^https?:\/\/\S+$/i.test(url);
+}
+
+function normalizeHttpUrl(value) {
+  return String(value || '').trim();
+}
+
+function parseGiftNoteMedia(noteValue = '') {
+  const lines = String(noteValue || '').split(/\r?\n/);
+  let imageUrl = '';
+  let linkUrl = '';
+  const cleanLines = [];
+
+  lines.forEach((line) => {
+    const imageMatch = /^\[Bild\]\s+(https?:\/\/\S+)$/i.exec(line.trim());
+    if (imageMatch) {
+      imageUrl = imageMatch[1];
+      return;
+    }
+    const linkMatch = /^\[Link\]\s+(https?:\/\/\S+)$/i.exec(line.trim());
+    if (linkMatch) {
+      linkUrl = linkMatch[1];
+      return;
+    }
+    cleanLines.push(line);
+  });
+
+  return {
+    note: cleanLines.join('\n').trim(),
+    imageUrl,
+    linkUrl
+  };
+}
+
+function buildGiftNoteWithMedia(noteValue = '', imageUrl = '', linkUrl = '') {
+  const parsed = parseGiftNoteMedia(noteValue);
+  const lines = [];
+
+  if (parsed.note) lines.push(parsed.note);
+  if (imageUrl) lines.push(`[Bild] ${imageUrl}`);
+  if (linkUrl) lines.push(`[Link] ${linkUrl}`);
+
+  return lines.join('\n');
+}
+
+function getIdeaMedia(item = {}) {
+  const imageUrl = item.imageUrl || (item.type === 'image' ? item.content : '') || '';
+  const linkUrl = item.linkUrl || (item.type === 'link' ? item.content : '') || '';
+  return { imageUrl, linkUrl };
+}
+
+function showUiPopup(message, type = 'info') {
+  const containerId = 'giftsUiPopupContainer';
+  let container = document.getElementById(containerId);
+
+  if (!container) {
+    container = document.createElement('div');
+    container.id = containerId;
+    container.style.position = 'fixed';
+    container.style.top = '1rem';
+    container.style.right = '1rem';
+    container.style.zIndex = '2000';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '0.5rem';
+    container.style.maxWidth = 'min(92vw, 380px)';
+    document.body.appendChild(container);
+  }
+
+  const el = document.createElement('div');
+  const mapped = type === 'error' ? 'danger' : (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'primary'));
+  el.className = `alert alert-${mapped} shadow-sm py-2 px-3 mb-0`;
+  el.setAttribute('role', 'alert');
+  el.textContent = message;
+  container.appendChild(el);
+
+  setTimeout(() => {
+    el.remove();
+    if (!container.children.length) container.remove();
+  }, 2400);
+}
+
+function clearGeneratedSuggestions() {
+  generatedSuggestions = [];
+  generatedForPersonId = '';
+  selectedGeneratedSuggestionIds = new Set();
+}
+
+function buildGeneratedSuggestionId(suggestion, idx) {
+  const base = String(suggestion?.content || suggestion?.title || 'idee').replace(/\s+/g, '-').toLowerCase();
+  return `gs-${Date.now()}-${idx}-${base.slice(0, 24)}`;
+}
+
+function renderGeneratedSuggestionsPanel() {
+  if (currentTab !== 'ideas' || !generatedSuggestions.length) return '';
+
+  const personName = persons.find(p => p.id === generatedForPersonId)?.name || 'Unbekannt';
+  const selectedCount = generatedSuggestions.filter(s => selectedGeneratedSuggestionIds.has(s._id)).length;
+
+  const rows = generatedSuggestions.map((s) => {
+    const checked = selectedGeneratedSuggestionIds.has(s._id) ? 'checked' : '';
+    return `
+      <div class="border rounded-3 p-2 bg-white d-flex gap-2 align-items-start">
+        <input class="form-check-input mt-1 generated-suggestion-check" type="checkbox" data-suggestion-id="${s._id}" ${checked}>
+        <div class="flex-grow-1">
+          <div class="fw-semibold">${s.title || s.content || 'Vorschlag'}</div>
+          <div class="small text-muted">${s.reason || 'Automatisch generiert'}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <i class="bi bi-stars text-warning"></i>
+          Generierte Ideen für <strong>${personName}</strong>
+        </div>
+        <span class="badge bg-light text-dark">${generatedSuggestions.length}</span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-2 flex-wrap mb-3">
+          <button class="btn btn-sm btn-outline-secondary" id="selectAllGeneratedBtn">
+            <i class="bi bi-check2-square"></i> Alle auswählen
+          </button>
+          <button class="btn btn-sm btn-success" id="adoptGeneratedBtn" ${selectedCount ? '' : 'disabled'}>
+            <i class="bi bi-download"></i> Ausgewählte übernehmen (${selectedCount})
+          </button>
+          <button class="btn btn-sm btn-outline-danger" id="clearGeneratedBtn">
+            <i class="bi bi-x-circle"></i> Verwerfen
+          </button>
+        </div>
+        <div class="vstack gap-2">
+          ${rows}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function parseDateOnly(value) {
@@ -463,14 +705,14 @@ function renderFilters(container) {
 
       <div>
         <select id="filterOccasion" class="form-select">
-          <option value="all" ${filters.occasion === 'all' ? 'selected' : ''}>Alle Anlässe</option>
-          <optgroup label="Feste Anlässe">
+          <option value="all" ${filters.occasion === 'all' ? 'selected' : ''}>Alle AnlÃ¤sse</option>
+          <optgroup label="Feste AnlÃ¤sse">
             ${FIXED_OCCASIONS.map(o => `
               <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
             `).join('')}
           </optgroup>
           ${customOccasions.length ? `
-            <optgroup label="Eigene Anlässe">
+            <optgroup label="Eigene AnlÃ¤sse">
               ${customOccasions.map(o => `
                 <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
               `).join('')}
@@ -493,6 +735,9 @@ function renderFilters(container) {
 
       <div class="ms-auto">
         ${currentTab === 'ideas' ? `
+          <button class="btn btn-outline-warning me-2" id="generateIdeasBtn">
+            <i class="bi bi-stars"></i> Ideen generieren
+          </button>
           <button class="btn btn-outline-primary me-2" id="sharePersonIdeasBtn">
             <i class="bi bi-share"></i> Teilen
           </button>
@@ -511,12 +756,14 @@ function renderList() {
   const listDiv = document.getElementById('listContainer');
   const source  = currentTab === 'gifts' ? gifts : (currentTab === 'ideas' ? ideas : getPastDisplayGifts());
   const src     = applyFilters(source);
+  const suggestionsPanel = renderGeneratedSuggestionsPanel();
   const sectionTitle = currentTab === 'gifts'
     ? 'Geschenke'
     : (currentTab === 'ideas' ? 'Geschenkideen' : 'Vergangene Geschenke');
 
   if (!src.length) {
     listDiv.innerHTML = `
+      ${suggestionsPanel}
       <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size: 3rem;"></i>
         <h5 class="mt-3">Keine ${sectionTitle} gefunden</h5>
@@ -532,7 +779,10 @@ function renderList() {
       : (currentTab === 'ideas' ? renderIdeaCard(item) : renderPastGiftCard(item))
   )).join('');
 
-  listDiv.innerHTML = `<div class="row g-3">${cards}</div>`;
+  listDiv.innerHTML = `
+    ${suggestionsPanel}
+    <div class="row g-3">${cards}</div>
+  `;
 
   if (focusItemId) {
     const target = listDiv.querySelector(`[data-id="${focusItemId}"]`);
@@ -544,8 +794,9 @@ function renderList() {
   }
 }
 function renderGiftCard(item) {
+  const media = parseGiftNoteMedia(item.note || '');
   const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const statusText  = item.status === 'ueberreicht' ? 'Ãœberreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
@@ -578,11 +829,25 @@ function renderGiftCard(item) {
                 <span>${item.occasionName}</span>
               </div>
             ` : ''}
-            ${item.note ? `
+            ${media.note ? `
               <div class="gift-meta-item">
                 <i class="bi bi-chat-left-text text-muted"></i>
                 <span class="fw-semibold">Notiz:</span>
-                <span class="text-muted">${item.note}</span>
+                <span class="text-muted">${media.note}</span>
+              </div>
+            ` : ''}
+            ${media.linkUrl ? `
+              <div class="gift-meta-item">
+                <i class="bi bi-link-45deg text-muted"></i>
+                <span class="fw-semibold">Link:</span>
+                <a href="${media.linkUrl}" target="_blank" class="gift-link text-truncate">${media.linkUrl}</a>
+              </div>
+            ` : ''}
+            ${media.imageUrl ? `
+              <div class="gift-meta-item">
+                <i class="bi bi-image text-muted"></i>
+                <span class="fw-semibold">Bild:</span>
+                <a href="${media.imageUrl}" target="_blank" class="gift-link text-truncate">Bild Ã¶ffnen</a>
               </div>
             ` : ''}
             ${item.sourceIdeaId ? `
@@ -613,57 +878,77 @@ function renderIdeaCard(item) {
   const statusText  = item.status === 'erledigt' ? 'Erledigt' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
   const cardTitle   = item.giftName || item.occasionName || 'Geschenkidee';
   const detailsText = item.note || (!(item.giftName) ? item.content : '');
+  const media = getIdeaMedia(item);
 
   let contentPreview = '';
-  if (item.imageUrl) {
+  if (media.imageUrl) {
     contentPreview = `
       <div class="text-center gift-image-preview">
-        <img src="${item.imageUrl}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;" alt="Geschenkidee">
+        <a href="${media.imageUrl}" target="_blank" class="gift-link d-inline-block">
+          <img src="${media.imageUrl}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;" alt="Geschenkidee">
+        </a>
       </div>
     `;
-  } else if (item.linkUrl) {
+  } else if (media.linkUrl) {
     contentPreview = `
-      <a href="${item.linkUrl}" target="_blank" class="d-flex align-items-center text-decoration-none gift-link">
+      <a href="${media.linkUrl}" target="_blank" class="d-flex align-items-center text-decoration-none gift-link">
         <i class="bi bi-link-45deg me-2"></i>
-        <span class="text-truncate">${item.linkUrl}</span>
+        <span class="text-truncate">${media.linkUrl}</span>
       </a>
     `;
   } else if (detailsText) {
-    contentPreview = `<p class="mb-0">${detailsText}</p>`;
+    contentPreview = `
+      <div class="gift-meta-item gift-idea-extra-item">
+        <i class="bi bi-chat-left-text text-muted"></i>
+        <span class="fw-semibold">Info:</span>
+        <span class="gift-idea-note">${detailsText}</span>
+      </div>
+    `;
   }
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
       <div class="card h-100 gift-idea-card" data-id="${item.id}">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div class="flex-grow-1">
-              <h5 class="card-title mb-1">
-                <i class="bi bi-lightbulb-fill text-warning"></i>
-                ${cardTitle}
-              </h5>
-              <div class="text-muted small">
-                <i class="bi bi-person"></i> ${item.personName}
-              </div>
-              ${item.occasionName && item.occasionName !== cardTitle ? `
-                <div class="text-muted small">
-                  <i class="bi bi-star"></i> ${item.occasionName}
-                </div>
-              ` : ''}
-            </div>
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h2 class="gift-primary-title mb-0">
+              <i class="bi bi-lightbulb-fill text-warning"></i>
+              ${cardTitle}
+            </h2>
             <span class="badge bg-${statusBadge}">${statusText}</span>
           </div>
 
-          ${contentPreview ? `<div class="mb-3 gift-idea-content">${contentPreview}</div>` : ''}
+          <div class="gift-meta-list mb-3">
+            <div class="gift-meta-item gift-idea-person-row">
+              <i class="bi bi-person text-muted"></i>
+              <span class="fw-semibold">Person:</span>
+              <span class="gift-idea-person">${item.personName || '-'}</span>
+            </div>
+            ${item.occasionName && item.occasionName !== cardTitle ? `
+              <div class="gift-meta-item">
+                <i class="bi bi-star text-muted"></i>
+                <span class="fw-semibold">Anlass:</span>
+                <span>${item.occasionName}</span>
+              </div>
+            ` : ''}
+            ${item.date ? `
+              <div class="gift-meta-item">
+                <i class="bi bi-calendar-event text-muted"></i>
+                <span class="fw-semibold">Datum:</span>
+                <span>${item.date}</span>
+              </div>
+            ` : ''}
+            ${contentPreview ? `<div class="gift-idea-content">${contentPreview}</div>` : ''}
+          </div>
 
           <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-primary edit-btn">
-              <i class="bi bi-pencil"></i>
+            <button class="btn btn-sm btn-outline-primary edit-btn flex-grow-1">
+              <i class="bi bi-pencil"></i> Bearbeiten
             </button>
             <button class="btn btn-sm btn-outline-danger delete-btn">
               <i class="bi bi-trash"></i>
             </button>
-            <button class="btn btn-sm btn-success convert-btn flex-grow-1">
+            <button class="btn btn-sm btn-success convert-btn">
               <i class="bi bi-arrow-right-circle"></i> Konvertieren
             </button>
           </div>
@@ -675,7 +960,7 @@ function renderIdeaCard(item) {
 
 function renderPastGiftCard(item) {
   const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'Ueberreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
   const title = item.giftName || item.occasionName || 'Vergangenes Geschenk';
 
   return `
@@ -751,7 +1036,7 @@ function renderConvertForm(formDiv) {
       <div class="card-body">
         <div class="alert alert-info">
           <strong>Idee:</strong> ${idea.content}<br>
-          <strong>Für:</strong> ${idea.personName}
+          <strong>FÃ¼r:</strong> ${idea.personName}
         </div>
 
         <form id="convertForm">
@@ -759,7 +1044,7 @@ function renderConvertForm(formDiv) {
             <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
             <input type="text" id="convertGiftName" class="form-control" required
                    value="${defaultGiftName}"
-                   placeholder="z.B. Amazon Gutschein, Buch 'Die Säulen der Erde'">
+                   placeholder="z.B. Amazon Gutschein, Buch 'Die SÃ¤ulen der Erde'">
           </div>
 
           <div class="mb-3">
@@ -770,14 +1055,14 @@ function renderConvertForm(formDiv) {
               <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
             </div>
             <small class="text-muted">
-              <i class="bi bi-info-circle"></i> Klicke auf das Feld, um ein Datum auszuwählen
+              <i class="bi bi-info-circle"></i> Klicke auf das Feld, um ein Datum auszuwÃ¤hlen
             </small>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Notiz</label>
             <textarea id="convertNote" class="form-control" rows="3"
-                      placeholder="Optional: Zusätzliche Informationen zum Geschenk"></textarea>
+                      placeholder="Optional: ZusÃ¤tzliche Informationen zum Geschenk"></textarea>
           </div>
 
           <div class="d-flex gap-2">
@@ -820,7 +1105,7 @@ function renderEntityForm(formDiv) {
             <div class="col-md-6 mb-3">
               <label class="form-label">Person <span class="text-danger">*</span></label>
               <select id="formPerson" class="form-select" required>
-                <option value="">Bitte wählen...</option>
+                <option value="">Bitte wÃ¤hlen...</option>
                 ${persons.map(p => `
                   <option value="${p.id}" ${item && item.personId === p.id ? 'selected' : ''}>${p.name}</option>
                 `).join('')}
@@ -831,26 +1116,26 @@ function renderEntityForm(formDiv) {
               <label class="form-label">Anlass</label>
               <select id="formOccasion" class="form-select">
                 <option value="">Kein spezifischer Anlass</option>
-                <optgroup label="Feste Anlässe">
+                <optgroup label="Feste AnlÃ¤sse">
                   ${FIXED_OCCASIONS.map(o => `
                     <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
                   `).join('')}
                 </optgroup>
                 ${customOccasions.length ? `
-                  <optgroup label="Eigene Anlässe">
+                  <optgroup label="Eigene AnlÃ¤sse">
                     ${customOccasions.map(o => `
                       <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
                     `).join('')}
                   </optgroup>
                 ` : ''}
-                <option value="__custom__">➕ Individueller Anlass...</option>
+                <option value="__custom__">âž• Individueller Anlass...</option>
               </select>
             </div>
 
             <div class="col-12 mb-3 d-none" id="customOccasionDiv">
               <label class="form-label">Individueller Anlass</label>
               <input type="text" id="formCustomOccasion" class="form-control"
-                     placeholder="z.B. Hochzeitstag, Firmenjubiläum">
+                     placeholder="z.B. Hochzeitstag, FirmenjubilÃ¤um">
             </div>
           </div>
 
@@ -865,7 +1150,7 @@ function renderEntityForm(formDiv) {
             </button>
             ${isEdit ? `
               <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
-                <i class="bi bi-trash"></i> Löschen
+                <i class="bi bi-trash"></i> LÃ¶schen
               </button>
             ` : ''}
           </div>
@@ -885,7 +1170,7 @@ function renderEntityForm(formDiv) {
     });
   }
 
-  // Datepicker für Geschenke
+  // Datepicker fÃ¼r Geschenke
   if (currentTab === 'gifts') {
     const dateInput = document.getElementById('formDate');
     const dateGroup = dateInput?.closest('.input-group');
@@ -904,11 +1189,13 @@ function renderEntityForm(formDiv) {
 }
 
 function renderIdeaFormFields(item) {
+  const media = getIdeaMedia(item || {});
+  const isTextIdea = item ? (item.type !== 'link' && item.type !== 'image') : true;
   const ideaGiftName = item
-    ? (item.giftName || (!(item.note) ? item.content : '') || '')
+    ? (item.giftName || (isTextIdea && !(item.note) ? item.content : '') || '')
     : '';
   const ideaDetails = item
-    ? (item.note || (!(item.giftName) ? item.content : '') || '')
+    ? (item.note || (isTextIdea && !(item.giftName) ? item.content : '') || '')
     : '';
   const ideaDate = item?.date || '';
 
@@ -938,15 +1225,18 @@ function renderIdeaFormFields(item) {
 
     <div class="mb-3">
       <label class="form-label">Medien</label>
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-          <i class="bi bi-image"></i> Bild hochladen
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-          <i class="bi bi-link-45deg"></i> Link einfügen
+      <div class="input-group mt-2">
+        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ''}">
+        <button type="button" class="btn btn-outline-secondary" id="mediaOpenImageBtn">
+          <i class="bi bi-box-arrow-up-right"></i> Bild öffnen
         </button>
       </div>
-      <small class="text-muted"><i class="bi bi-info-circle"></i> Medienfunktion noch nicht implementiert</small>
+      <div class="input-group mt-2">
+        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ''}">
+        <button type="button" class="btn btn-outline-secondary" id="mediaCopyLinkBtn">
+          <i class="bi bi-clipboard"></i> Link kopieren
+        </button>
+      </div>
     </div>
 
     <div class="mb-3">
@@ -959,8 +1249,9 @@ function renderIdeaFormFields(item) {
     </div>
   `;
 }
-
 function renderGiftFormFields(item) {
+  const media = parseGiftNoteMedia(item?.note || '');
+
   return `
     <div class="mb-3">
       <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
@@ -981,20 +1272,23 @@ function renderGiftFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Notiz</label>
       <textarea id="formNote" class="form-control" rows="3"
-                placeholder="Optional: Zusätzliche Informationen">${item ? item.note || '' : ''}</textarea>
+                placeholder="Optional: Zusätzliche Informationen">${media.note || ''}</textarea>
     </div>
 
     <div class="mb-3">
       <label class="form-label">Medien</label>
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-          <i class="bi bi-image"></i> Bild hochladen
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-          <i class="bi bi-link-45deg"></i> Link einfügen
+      <div class="input-group mt-2">
+        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ''}">
+        <button type="button" class="btn btn-outline-secondary" id="mediaOpenImageBtn">
+          <i class="bi bi-box-arrow-up-right"></i> Bild öffnen
         </button>
       </div>
-      <small class="text-muted"><i class="bi bi-info-circle"></i> Medienfunktion noch nicht implementiert</small>
+      <div class="input-group mt-2">
+        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ''}">
+        <button type="button" class="btn btn-outline-secondary" id="mediaCopyLinkBtn">
+          <i class="bi bi-clipboard"></i> Link kopieren
+        </button>
+      </div>
     </div>
 
     <div class="mb-3">
@@ -1007,7 +1301,6 @@ function renderGiftFormFields(item) {
     </div>
   `;
 }
-
 // ---------- Event Handlers ----------
 
 function attachEventListeners(ctx) {
@@ -1022,6 +1315,7 @@ function attachEventListeners(ctx) {
       editingItem   = null;
       formMode      = 'none';
       convertIdeaId = null;
+      clearGeneratedSuggestions();
 
       document.querySelectorAll('#giftsTabs .nav-link').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
@@ -1041,6 +1335,9 @@ function attachEventListeners(ctx) {
   });
 
   addListener(document.getElementById('filterPerson'), 'change', (e) => {
+    if (generatedForPersonId && generatedForPersonId !== e.target.value) {
+      clearGeneratedSuggestions();
+    }
     filters.person = e.target.value;
     renderList();
     attachListListeners();
@@ -1073,6 +1370,11 @@ function attachEventListeners(ctx) {
     await handleShareIdeasByPerson();
   });
 
+  addListener(document.getElementById('generateIdeasBtn'), 'click', async (e) => {
+    e.preventDefault();
+    await handleGenerateIdeasFromSuggestions();
+  });
+
   // Formular
   const formEl = document.getElementById('entityForm');
   addListener(formEl, 'submit', (e) => handleFormSubmit(e, ctx));
@@ -1089,8 +1391,44 @@ function attachEventListeners(ctx) {
   });
 
   addListener(document.getElementById('deleteBtn'), 'click', () => handleDelete(ctx));
+  attachMediaFieldListeners();
 
   attachListListeners();
+}
+
+function attachMediaFieldListeners() {
+  const openImageBtn = document.getElementById('mediaOpenImageBtn');
+  const copyLinkBtn = document.getElementById('mediaCopyLinkBtn');
+  const imageInput = document.getElementById('formImageUrl');
+  const linkInput = document.getElementById('formLinkUrl');
+
+  addListener(openImageBtn, 'click', () => {
+    const url = imageInput?.value?.trim() || '';
+    if (!isHttpUrl(url)) {
+      showUiPopup('Bitte eine gültige Bild-URL (http/https) eingeben.', 'warning');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    showUiPopup('Bild wurde in einem neuen Tab geöffnet.', 'success');
+  });
+
+  addListener(copyLinkBtn, 'click', async () => {
+    const url = linkInput?.value?.trim() || '';
+    if (!isHttpUrl(url)) {
+      showUiPopup('Bitte eine gültige Link-URL (http/https) eingeben.', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard?.writeText(url);
+      copyLinkBtn.innerHTML = '<i class="bi bi-check2"></i> Kopiert';
+      showUiPopup('Link wurde in die Zwischenablage kopiert.', 'success');
+      setTimeout(() => {
+        copyLinkBtn.innerHTML = '<i class="bi bi-clipboard"></i> Link kopieren';
+      }, 1200);
+    } catch {
+      showUiPopup('Kopieren fehlgeschlagen.', 'error');
+    }
+  });
 }
 
 async function handleFormSubmit(e, ctx) {
@@ -1120,10 +1458,16 @@ async function handleFormSubmit(e, ctx) {
 
     const giftName = document.getElementById('formGiftName')?.value.trim() || '';
     const note     = document.getElementById('formNote')?.value.trim()     || '';
+    const imageUrl = normalizeHttpUrl(document.getElementById('formImageUrl')?.value || '');
+    const linkUrl  = normalizeHttpUrl(document.getElementById('formLinkUrl')?.value || '');
     const status   = document.getElementById('formStatus').value;
+
+    if (imageUrl && !isHttpUrl(imageUrl)) throw new Error('Bild-URL muss mit http:// oder https:// beginnen.');
+    if (linkUrl && !isHttpUrl(linkUrl)) throw new Error('Link-URL muss mit http:// oder https:// beginnen.');
 
     if (currentTab === 'gifts') {
       const date = document.getElementById('formDate').value;
+      const noteWithMedia = buildGiftNoteWithMedia(note, imageUrl, linkUrl);
 
       if (!personId || !date || !giftName) {
         alert('Person, Name und Datum sind erforderlich');
@@ -1133,9 +1477,9 @@ async function handleFormSubmit(e, ctx) {
       }
 
       if (formMode === 'edit' && editingItem) {
-        await updateGift(editingItem, { personId, personName, occasionId, occasionName, giftName, date, note, status });
+        await updateGift(editingItem, { personId, personName, occasionId, occasionName, giftName, date, note: noteWithMedia, status });
       } else {
-        await createGift({ personId, personName, occasionId, occasionName, giftName, date, note, status });
+        await createGift({ personId, personName, occasionId, occasionName, giftName, date, note: noteWithMedia, status });
       }
     } else {
       const ideaDate = document.getElementById('formIdeaDate')?.value || '';
@@ -1147,16 +1491,22 @@ async function handleFormSubmit(e, ctx) {
         return;
       }
 
-      if (!giftName && !note) {
-        alert('Bitte gib mindestens einen Geschenknamen oder zusätzliche Informationen ein');
+      if (!giftName && !note && !imageUrl && !linkUrl) {
+        alert('Bitte gib mindestens einen Geschenknamen, Infos oder eine Medien-URL ein');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
         return;
       }
 
-      // Kompatibilitätsfelder: type und content werden weiter befüllt
-      const type    = 'text';
-      const content = note || giftName || '';
+      let type = 'text';
+      let content = note || giftName || '';
+      if (imageUrl) {
+        type = 'image';
+        content = imageUrl;
+      } else if (linkUrl) {
+        type = 'link';
+        content = linkUrl;
+      }
 
       if (formMode === 'edit' && editingItem) {
         await updateGiftIdea(editingItem, {
@@ -1198,7 +1548,7 @@ async function handleConvertSubmit(e, ctx) {
   const giftName    = document.getElementById('convertGiftName').value.trim();
 
   if (!date || !giftName) {
-    alert('Bitte fülle alle Pflichtfelder aus!');
+    alert('Bitte fÃ¼lle alle Pflichtfelder aus!');
     return;
   }
 
@@ -1259,6 +1609,36 @@ async function handleDelete(ctx) {
 }
 
 function attachListListeners() {
+  addListener(document.getElementById('selectAllGeneratedBtn'), 'click', (e) => {
+    e.preventDefault();
+    generatedSuggestions.forEach((s) => selectedGeneratedSuggestionIds.add(s._id));
+    renderList();
+    attachListListeners();
+  });
+
+  addListener(document.getElementById('clearGeneratedBtn'), 'click', (e) => {
+    e.preventDefault();
+    clearGeneratedSuggestions();
+    renderList();
+    attachListListeners();
+  });
+
+  addListener(document.getElementById('adoptGeneratedBtn'), 'click', async (e) => {
+    e.preventDefault();
+    await handleAdoptGeneratedSuggestions();
+  });
+
+  document.querySelectorAll('.generated-suggestion-check').forEach((checkbox) => {
+    addListener(checkbox, 'change', (e) => {
+      const id = e.currentTarget.dataset.suggestionId;
+      if (!id) return;
+      if (e.currentTarget.checked) selectedGeneratedSuggestionIds.add(id);
+      else selectedGeneratedSuggestionIds.delete(id);
+      const adoptBtn = document.getElementById('adoptGeneratedBtn');
+      if (adoptBtn) adoptBtn.disabled = selectedGeneratedSuggestionIds.size === 0;
+    });
+  });
+
   document.querySelectorAll('#listContainer .edit-btn').forEach(btn => {
     addListener(btn, 'click', (e) => {
       e.preventDefault();
@@ -1357,7 +1737,7 @@ export async function render(container, ctx) {
       <div id="tabFilters"></div>
 
       <div id="giftsLoading" class="text-center my-3 d-none">
-        <div class="spinner-border" role="status"><span class="visually-hidden">Lädt...</span></div>
+        <div class="spinner-border" role="status"><span class="visually-hidden">LÃ¤dt...</span></div>
       </div>
 
       <div id="formContainer" class="mb-4"></div>
@@ -1382,5 +1762,8 @@ export function destroy() {
   formMode      = 'none';
   convertIdeaId = null;
   focusItemId = null;
+  clearGeneratedSuggestions();
 }
+
+
 
