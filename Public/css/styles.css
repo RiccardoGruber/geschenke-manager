@@ -1177,16 +1177,44 @@
 
 /* Gift Idea Content */
 .gift-idea-content {
-  background-color: #ffffff;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  min-height: 60px;
+  padding: 0;
+  border: 0;
+  min-height: 0;
 }
 
 .gift-idea-content p {
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.gift-idea-extra-item {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.gift-idea-note {
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gift-idea-person {
   color: var(--text-primary);
-  line-height: 1.6;
+  font-weight: 600;
+}
+
+.gift-idea-content .gift-link {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.gift-idea-content .gift-image-preview img {
+  max-height: 110px !important;
+  border: 1px solid var(--border-color);
 }
 
 /* Person cards (similar to gift-idea style) */
@@ -1727,6 +1755,29 @@
 
 .dashboard-card.span-full {
   grid-column: 1 / -1;
+}
+
+.notification-entry {
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent !important;
+}
+
+.notification-entry.notification-unread {
+  border-left-color: var(--brand-color) !important;
+  background-color: #f8fbff !important;
+}
+
+.notification-entry.notification-read {
+  opacity: 0.8;
+}
+
+.notification-entry:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.notification-read-indicator {
+  font-size: 0.68rem;
 }
 
 /* reminder highlight */
