@@ -6,7 +6,7 @@
 
 import { listPersons, createPerson, updatePerson, deletePerson } from '../person-service.js';
 import { listGiftIdeas } from '../gift-idea-service.js';
-import { listGifts, listPastGifts } from '../gift-service.js';
+import { listGifts, listPastGifts, deletePastGift } from '../gift-service.js';
 import { waitForUserOnce, isAuthed } from '../auth-adapter.js';
 
 // ---------- State ----------
@@ -164,6 +164,78 @@ function showDeleteConfirmModal(personName = '') {
           <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
           <button type="button" class="btn btn-danger" data-action="confirm">
             <i class="bi bi-trash"></i> Löschen
+          </button>
+        </div>
+      </div>
+    `;
+
+    const modalEl = backdrop.querySelector('.occasion-delete-modal');
+    const closeBtn = backdrop.querySelector('.btn-close');
+    const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
+    const confirmBtn = backdrop.querySelector('[data-action="confirm"]');
+    const nameEl = backdrop.querySelector('.occasion-delete-modal-name');
+
+    if (personName) nameEl.textContent = `Person: "${personName}"`;
+    else nameEl.remove();
+
+    const finish = (result) => {
+      document.removeEventListener('keydown', onKeydown);
+      backdrop.removeEventListener('click', onBackdropClick);
+      closeBtn.removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      confirmBtn.removeEventListener('click', onConfirm);
+      backdrop.remove();
+      document.body.classList.remove('occasion-delete-modal-open');
+      if (activeDeleteModalCleanup === finish) activeDeleteModalCleanup = null;
+      resolve(result);
+    };
+
+    const onCancel = () => finish(false);
+    const onConfirm = () => finish(true);
+    const onBackdropClick = (e) => {
+      if (e.target === backdrop) onCancel();
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+
+    activeDeleteModalCleanup = finish;
+    document.body.classList.add('occasion-delete-modal-open');
+    document.body.appendChild(backdrop);
+    document.addEventListener('keydown', onKeydown);
+    backdrop.addEventListener('click', onBackdropClick);
+    closeBtn.addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    confirmBtn.addEventListener('click', onConfirm);
+
+    modalEl.focus?.();
+    confirmBtn.focus();
+  });
+}
+
+function showDeletePastCascadeModal(personName = '', pastCount = 0) {
+  if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+
+  return new Promise((resolve) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'occasion-delete-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="personDeletePastModalTitle" tabindex="-1">
+        <div class="occasion-delete-modal-header">
+          <h5 id="personDeletePastModalTitle" class="mb-0">
+            <i class="bi bi-exclamation-octagon text-danger"></i> Person inkl. Historie löschen
+          </h5>
+          <button type="button" class="btn-close" aria-label="Schliessen"></button>
+        </div>
+        <div class="occasion-delete-modal-body">
+          <p class="mb-2">Diese Person hat <strong>${pastCount}</strong> vergangene Geschenke.</p>
+          <p class="mb-2">Sollen die Person und alle vergangenen Geschenke endgültig gelöscht werden?</p>
+          <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
+        </div>
+        <div class="occasion-delete-modal-actions">
+          <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
+          <button type="button" class="btn btn-danger" data-action="confirm">
+            <i class="bi bi-trash"></i> Alles löschen
           </button>
         </div>
       </div>
@@ -419,11 +491,25 @@ async function savePersonFromForm() {
   renderPersonsList();
 }
 
-function hasLinkedEntries(personId) {
-  const hasIdeas = allGiftIdeas.some((idea) => idea.personId === personId);
-  const hasPlannedGifts = allGifts.some((gift) => gift.personId === personId);
-  const hasPast = allPastGifts.some((gift) => gift.personId === personId);
-  return hasIdeas || hasPlannedGifts || hasPast;
+function getDeleteDependencies(personId) {
+  const ideas = allGiftIdeas.filter((idea) => idea.personId === personId);
+  const plannedGifts = allGifts.filter((gift) => gift.personId === personId);
+  const pastGifts = allPastGifts.filter((gift) => gift.personId === personId);
+
+  return {
+    ideas,
+    plannedGifts,
+    pastGifts
+  };
+}
+
+async function deletePastGiftsForPerson(personId) {
+  const { pastGifts } = getDeleteDependencies(personId);
+  for (const gift of pastGifts) {
+    if (!gift?.id) continue;
+    await deletePastGift(gift.id);
+  }
+  return pastGifts.length;
 }
 
 function getDeleteFailedMessage(err) {
@@ -518,24 +604,40 @@ function attachEventListeners(ctx) {
     e.preventDefault();
 
     if (!editingId) return;
-    const person = getPersonById(editingId);
+    const personIdToDelete = editingId;
+    const person = getPersonById(personIdToDelete);
     const ok = await showDeleteConfirmModal(person?.name || '');
     if (!ok) return;
 
     try {
-      if (hasLinkedEntries(editingId)) {
-        showPersonsMessage('Diese Person kann nicht gelöscht werden, weil bereits Geschenkideen oder Geschenke existieren.', 'warning');
+      const dependencies = getDeleteDependencies(personIdToDelete);
+      const ideasCount = dependencies.ideas.length;
+      const plannedCount = dependencies.plannedGifts.length;
+      const pastCount = dependencies.pastGifts.length;
+      if (ideasCount || plannedCount) {
+        showPersonsMessage(`Diese Person kann nicht gelöscht werden. Es existieren noch ${ideasCount} Geschenkideen und ${plannedCount} geplante Geschenke.`, 'warning');
         return;
       }
 
-      await deletePerson(editingId);
+      let deletedPastCount = 0;
+      if (pastCount > 0) {
+        const cascadeConfirmed = await showDeletePastCascadeModal(person?.name || '', pastCount);
+        if (!cascadeConfirmed) return;
+        deletedPastCount = await deletePastGiftsForPerson(personIdToDelete);
+      }
+
+      await deletePerson(personIdToDelete);
       await loadAllData();
-      if (currentlyOpenPersonId === editingId) currentlyOpenPersonId = null;
+      if (currentlyOpenPersonId === personIdToDelete) currentlyOpenPersonId = null;
       editingId = null;
       mode = 'none';
       renderEditor();
       renderPersonsList();
-      showPersonsMessage('Person wurde erfolgreich gelöscht.', 'success');
+      if (deletedPastCount > 0) {
+        showPersonsMessage(`Person und ${deletedPastCount} vergangene Geschenke wurden erfolgreich gel�scht.`, 'success');
+      } else {
+        showPersonsMessage('Person wurde erfolgreich gel�scht.', 'success');
+      }
     } catch (err) {
       showPersonsMessage(getDeleteFailedMessage(err), 'danger');
     }
@@ -624,3 +726,4 @@ export function destroy() {
   currentlyOpenPersonId = null;
   currentCtx = null;
 }
+
