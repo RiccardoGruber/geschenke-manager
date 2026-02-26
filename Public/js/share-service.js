@@ -19,7 +19,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -60,12 +60,14 @@ function generateToken(len = 28) {
   const bytes = new Uint8Array(len);
   crypto.getRandomValues(bytes);
   let out = "";
-  for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i] % alphabet.length];
+  for (let i = 0; i < bytes.length; i++)
+    out += alphabet[bytes[i] % alphabet.length];
   return out;
 }
 
 function buildShareUrl(token) {
-  const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, "/");
+  const base =
+    window.location.origin + window.location.pathname.replace(/\/[^/]*$/, "/");
   return `${base}share.html?t=${encodeURIComponent(token)}`;
 }
 
@@ -82,7 +84,7 @@ function toPublicIdeaSnapshot(idea) {
     status: normalizeString(idea.status),
     occasionName: normalizeString(idea.occasionName),
     personId: normalizeString(idea.personId),
-    personName: normalizeString(idea.personName)
+    personName: normalizeString(idea.personName),
   };
 }
 
@@ -91,7 +93,11 @@ function toPublicIdeaSnapshot(idea) {
  * TF-46: Teilen-Link erstellen für ALLE Geschenkideen einer Person
  * Snapshot wird in shareLinks gespeichert.
  */
-export async function createShareLinkGiftIdeasByPerson({ personId, personName = "", ttlDays = 30 } = {}) {
+export async function createShareLinkGiftIdeasByPerson({
+  personId,
+  personName = "",
+  ttlDays = 30,
+} = {}) {
   const uid = await getUidOrThrow();
   const pid = requireNonEmpty("personId", personId);
 
@@ -112,7 +118,7 @@ export async function createShareLinkGiftIdeasByPerson({ personId, personName = 
     expiresAt,
     isActive: true,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return buildShareUrl(token);
@@ -141,7 +147,7 @@ export async function createShareLinkGiftIdea({ ideaId, ttlDays = 30 } = {}) {
     expiresAt,
     isActive: true,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return buildShareUrl(token);
@@ -193,10 +199,11 @@ export async function deactivateShareLink(token) {
 
   // simple owner check via stored uid
   const current = await resolveShareToken(t);
-  if (current.uid !== uid) throw new Error("Keine Berechtigung, diesen Link zu deaktivieren.");
+  if (current.uid !== uid)
+    throw new Error("Keine Berechtigung, diesen Link zu deaktivieren.");
 
   await updateDoc(doc(db, "shareLinks", t), {
     isActive: false,
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 }

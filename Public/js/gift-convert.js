@@ -21,7 +21,10 @@ function todayYYYYMMDD() {
  * - markiert Idee als "besorgt"
  * Rückgabe: { giftId }
  */
-export async function convertIdeaToGift(ideaId, { date = todayYYYYMMDD(), note = "" } = {}) {
+export async function convertIdeaToGift(
+  ideaId,
+  { date = todayYYYYMMDD(), note = "" } = {},
+) {
   const idea = await getGiftIdea(ideaId);
   if (!idea) throw new Error("Geschenkidee nicht gefunden.");
 
@@ -34,7 +37,7 @@ export async function convertIdeaToGift(ideaId, { date = todayYYYYMMDD(), note =
     date,
     note: note || (idea.type === "text" ? idea.content : ""),
     status: "offen",
-    sourceIdeaId: ideaId
+    sourceIdeaId: ideaId,
   });
 
   await updateGiftIdea(ideaId, { status: "besorgt" });

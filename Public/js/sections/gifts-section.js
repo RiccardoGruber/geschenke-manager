@@ -5,41 +5,52 @@
  * Tabs: "Geschenke" (geplant) | "Geschenkideen"
  */
 
-import { listGifts, createGift, updateGift, deleteGift, listPastGifts } from '../gift-service.js';
-import { listGiftIdeas, createGiftIdea, updateGiftIdea, deleteGiftIdea } from '../gift-idea-service.js';
-import { convertIdeaToGift }                                            from '../gift-convert.js';
-import { generateIdeasForPerson }                                       from '../suggestion-service.js';
-import { createShareLinkGiftIdeasByPerson }                             from '../share-service.js';
-import { listPersons }                                                   from '../person-service.js';
-import { listOccasions }                                                 from '../occasion-service.js';
-import { waitForUserOnce, isAuthed }                                     from '../auth-adapter.js';
+import {
+  listGifts,
+  createGift,
+  updateGift,
+  deleteGift,
+  listPastGifts,
+} from "../gift-service.js";
+import {
+  listGiftIdeas,
+  createGiftIdea,
+  updateGiftIdea,
+  deleteGiftIdea,
+} from "../gift-idea-service.js";
+import { convertIdeaToGift } from "../gift-convert.js";
+import { generateIdeasForPerson } from "../suggestion-service.js";
+import { createShareLinkGiftIdeasByPerson } from "../share-service.js";
+import { listPersons } from "../person-service.js";
+import { listOccasions } from "../occasion-service.js";
+import { waitForUserOnce, isAuthed } from "../auth-adapter.js";
 
 // ---------- State ----------
 
-let gifts     = [];
-let ideas     = [];
+let gifts = [];
+let ideas = [];
 let pastGifts = [];
-let persons   = [];
+let persons = [];
 let occasions = [];
 
-let currentTab    = 'ideas';
-let filters       = { search: '', person: 'all', status: 'all', occasion: 'all' };
+let currentTab = "ideas";
+let filters = { search: "", person: "all", status: "all", occasion: "all" };
 let eventListeners = [];
-let editingItem   = null;
-let formMode      = 'none';  // 'none' | 'create' | 'edit' | 'convert'
+let editingItem = null;
+let formMode = "none"; // 'none' | 'create' | 'edit' | 'convert'
 let convertIdeaId = null;
 let focusItemId = null;
 let activeDeleteModalCleanup = null;
 let activeSharePickerCleanup = null;
 let activeShareResultCleanup = null;
 let generatedSuggestions = [];
-let generatedForPersonId = '';
+let generatedForPersonId = "";
 let selectedGeneratedSuggestionIds = new Set();
 
 // Feste Anlässe (immer verfägbar, unabhä¤ngig von DB-Daten)
 const FIXED_OCCASIONS = [
-  { id: 'geburtstag',  name: 'Geburtstag' },
-  { id: 'weihnachten', name: 'Weihnachten' }
+  { id: "geburtstag", name: "Geburtstag" },
+  { id: "weihnachten", name: "Weihnachten" },
 ];
 
 // ---------- Helpers ----------
@@ -55,12 +66,12 @@ function removeAllListeners() {
   eventListeners = [];
 }
 
-function showDeleteConfirmModal(itemLabel = '') {
+function showDeleteConfirmModal(itemLabel = "") {
   if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
 
   return new Promise((resolve) => {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'occasion-delete-modal-backdrop';
+    const backdrop = document.createElement("div");
+    backdrop.className = "occasion-delete-modal-backdrop";
     backdrop.innerHTML = `
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="giftDeleteModalTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
@@ -82,23 +93,23 @@ function showDeleteConfirmModal(itemLabel = '') {
       </div>
     `;
 
-    const modalEl = backdrop.querySelector('.occasion-delete-modal');
-    const closeBtn = backdrop.querySelector('.btn-close');
+    const modalEl = backdrop.querySelector(".occasion-delete-modal");
+    const closeBtn = backdrop.querySelector(".btn-close");
     const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
     const confirmBtn = backdrop.querySelector('[data-action="confirm"]');
-    const nameEl = backdrop.querySelector('.occasion-delete-modal-name');
+    const nameEl = backdrop.querySelector(".occasion-delete-modal-name");
 
     if (itemLabel) nameEl.textContent = `Eintrag: "${itemLabel}"`;
     else nameEl.remove();
 
     const finish = (result) => {
-      document.removeEventListener('keydown', onKeydown);
-      backdrop.removeEventListener('click', onBackdropClick);
-      closeBtn.removeEventListener('click', onCancel);
-      cancelBtn.removeEventListener('click', onCancel);
-      confirmBtn.removeEventListener('click', onConfirm);
+      document.removeEventListener("keydown", onKeydown);
+      backdrop.removeEventListener("click", onBackdropClick);
+      closeBtn.removeEventListener("click", onCancel);
+      cancelBtn.removeEventListener("click", onCancel);
+      confirmBtn.removeEventListener("click", onConfirm);
       backdrop.remove();
-      document.body.classList.remove('occasion-delete-modal-open');
+      document.body.classList.remove("occasion-delete-modal-open");
       if (activeDeleteModalCleanup === finish) activeDeleteModalCleanup = null;
       resolve(result);
     };
@@ -109,32 +120,32 @@ function showDeleteConfirmModal(itemLabel = '') {
       if (e.target === backdrop) onCancel();
     };
     const onKeydown = (e) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === "Escape") onCancel();
     };
 
     activeDeleteModalCleanup = finish;
-    document.body.classList.add('occasion-delete-modal-open');
+    document.body.classList.add("occasion-delete-modal-open");
     document.body.appendChild(backdrop);
-    document.addEventListener('keydown', onKeydown);
-    backdrop.addEventListener('click', onBackdropClick);
-    closeBtn.addEventListener('click', onCancel);
-    cancelBtn.addEventListener('click', onCancel);
-    confirmBtn.addEventListener('click', onConfirm);
+    document.addEventListener("keydown", onKeydown);
+    backdrop.addEventListener("click", onBackdropClick);
+    closeBtn.addEventListener("click", onCancel);
+    cancelBtn.addEventListener("click", onCancel);
+    confirmBtn.addEventListener("click", onConfirm);
 
     modalEl.focus?.();
     confirmBtn.focus();
   });
 }
 
-function getDeleteFailedMessage(err, label = 'Der Eintrag') {
-  const raw = String(err?.message || err || '').toLowerCase();
-  if (raw.includes('permission') || raw.includes('unauthorized')) {
+function getDeleteFailedMessage(err, label = "Der Eintrag") {
+  const raw = String(err?.message || err || "").toLowerCase();
+  if (raw.includes("permission") || raw.includes("unauthorized")) {
     return `${label} konnte nicht geloescht werden. Es fehlen Berechtigungen.`;
   }
-  if (raw.includes('kein eingeloggter benutzer') || raw.includes('auth')) {
+  if (raw.includes("kein eingeloggter benutzer") || raw.includes("auth")) {
     return `${label} konnte nicht geloescht werden. Bitte erneut einloggen.`;
   }
-  if (raw.includes('id fehlt')) {
+  if (raw.includes("id fehlt")) {
     return `${label} konnte nicht geloescht werden. Die ID fehlt.`;
   }
   return `${label} konnte nicht geloescht werden: ${err?.message || err}`;
@@ -144,8 +155,8 @@ function showPersonSharePickerModal() {
   if (activeSharePickerCleanup) activeSharePickerCleanup(null);
 
   return new Promise((resolve) => {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'occasion-delete-modal-backdrop';
+    const backdrop = document.createElement("div");
+    backdrop.className = "occasion-delete-modal-backdrop";
     backdrop.innerHTML = `
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="sharePersonPickerTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
@@ -157,12 +168,16 @@ function showPersonSharePickerModal() {
         <div class="occasion-delete-modal-body">
           <p class="text-muted small mb-3">Wähle die Person, deren Geschenkideen geteilt werden sollen.</p>
           <div class="share-person-list">
-            ${persons.map((p) => `
+            ${persons
+              .map(
+                (p) => `
               <button type="button" class="share-person-option" data-person-id="${p.id}">
                 <i class="bi bi-person-circle text-primary"></i>
                 <span>${p.name}</span>
               </button>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </div>
         </div>
         <div class="occasion-delete-modal-actions">
@@ -171,19 +186,19 @@ function showPersonSharePickerModal() {
       </div>
     `;
 
-    const modalEl = backdrop.querySelector('.occasion-delete-modal');
-    const closeBtn = backdrop.querySelector('.btn-close');
+    const modalEl = backdrop.querySelector(".occasion-delete-modal");
+    const closeBtn = backdrop.querySelector(".btn-close");
     const cancelBtn = backdrop.querySelector('[data-action="cancel"]');
-    const personBtns = [...backdrop.querySelectorAll('.share-person-option')];
+    const personBtns = [...backdrop.querySelectorAll(".share-person-option")];
 
     const finish = (person) => {
-      document.removeEventListener('keydown', onKeydown);
-      backdrop.removeEventListener('click', onBackdropClick);
-      closeBtn.removeEventListener('click', onCancel);
-      cancelBtn.removeEventListener('click', onCancel);
-      personBtns.forEach(btn => btn.removeEventListener('click', onPick));
+      document.removeEventListener("keydown", onKeydown);
+      backdrop.removeEventListener("click", onBackdropClick);
+      closeBtn.removeEventListener("click", onCancel);
+      cancelBtn.removeEventListener("click", onCancel);
+      personBtns.forEach((btn) => btn.removeEventListener("click", onPick));
       backdrop.remove();
-      document.body.classList.remove('occasion-delete-modal-open');
+      document.body.classList.remove("occasion-delete-modal-open");
       if (activeSharePickerCleanup === finish) activeSharePickerCleanup = null;
       resolve(person);
     };
@@ -191,24 +206,24 @@ function showPersonSharePickerModal() {
     const onCancel = () => finish(null);
     const onPick = (e) => {
       const pid = e.currentTarget.dataset.personId;
-      const person = persons.find(p => p.id === pid) || null;
+      const person = persons.find((p) => p.id === pid) || null;
       finish(person);
     };
     const onBackdropClick = (e) => {
       if (e.target === backdrop) onCancel();
     };
     const onKeydown = (e) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === "Escape") onCancel();
     };
 
     activeSharePickerCleanup = finish;
-    document.body.classList.add('occasion-delete-modal-open');
+    document.body.classList.add("occasion-delete-modal-open");
     document.body.appendChild(backdrop);
-    document.addEventListener('keydown', onKeydown);
-    backdrop.addEventListener('click', onBackdropClick);
-    closeBtn.addEventListener('click', onCancel);
-    cancelBtn.addEventListener('click', onCancel);
-    personBtns.forEach(btn => btn.addEventListener('click', onPick));
+    document.addEventListener("keydown", onKeydown);
+    backdrop.addEventListener("click", onBackdropClick);
+    closeBtn.addEventListener("click", onCancel);
+    cancelBtn.addEventListener("click", onCancel);
+    personBtns.forEach((btn) => btn.addEventListener("click", onPick));
 
     modalEl.focus?.();
     personBtns[0]?.focus();
@@ -219,8 +234,8 @@ function showShareResultModal({ personName, url, copied }) {
   if (activeShareResultCleanup) activeShareResultCleanup();
 
   return new Promise((resolve) => {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'occasion-delete-modal-backdrop';
+    const backdrop = document.createElement("div");
+    backdrop.className = "occasion-delete-modal-backdrop";
     backdrop.innerHTML = `
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="shareResultTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
@@ -230,8 +245,8 @@ function showShareResultModal({ personName, url, copied }) {
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">${copied ? 'Der Link wurde in die Zwischenablage kopiert.' : 'Der Link wurde erstellt.'}</p>
-          <p class="mb-2 text-muted small">Person: ${personName || 'Unbekannt'}</p>
+          <p class="mb-2">${copied ? "Der Link wurde in die Zwischenablage kopiert." : "Der Link wurde erstellt."}</p>
+          <p class="mb-2 text-muted small">Person: ${personName || "Unbekannt"}</p>
           <input type="text" class="form-control form-control-sm" readonly value="${url}">
         </div>
         <div class="occasion-delete-modal-actions">
@@ -243,19 +258,19 @@ function showShareResultModal({ personName, url, copied }) {
       </div>
     `;
 
-    const modalEl = backdrop.querySelector('.occasion-delete-modal');
-    const closeBtn = backdrop.querySelector('.btn-close');
+    const modalEl = backdrop.querySelector(".occasion-delete-modal");
+    const closeBtn = backdrop.querySelector(".btn-close");
     const okBtn = backdrop.querySelector('[data-action="ok"]');
     const copyBtn = backdrop.querySelector('[data-action="copy"]');
 
     const finish = () => {
-      document.removeEventListener('keydown', onKeydown);
-      backdrop.removeEventListener('click', onBackdropClick);
-      closeBtn.removeEventListener('click', onClose);
-      okBtn.removeEventListener('click', onClose);
-      copyBtn.removeEventListener('click', onCopy);
+      document.removeEventListener("keydown", onKeydown);
+      backdrop.removeEventListener("click", onBackdropClick);
+      closeBtn.removeEventListener("click", onClose);
+      okBtn.removeEventListener("click", onClose);
+      copyBtn.removeEventListener("click", onCopy);
       backdrop.remove();
-      document.body.classList.remove('occasion-delete-modal-open');
+      document.body.classList.remove("occasion-delete-modal-open");
       if (activeShareResultCleanup === finish) activeShareResultCleanup = null;
       resolve();
     };
@@ -266,24 +281,25 @@ function showShareResultModal({ personName, url, copied }) {
         await navigator.clipboard?.writeText(url);
         copyBtn.innerHTML = '<i class="bi bi-check2"></i> Kopiert';
       } catch {
-        copyBtn.innerHTML = '<i class="bi bi-clipboard-x"></i> Kopieren fehlgeschlagen';
+        copyBtn.innerHTML =
+          '<i class="bi bi-clipboard-x"></i> Kopieren fehlgeschlagen';
       }
     };
     const onBackdropClick = (e) => {
       if (e.target === backdrop) onClose();
     };
     const onKeydown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
 
     activeShareResultCleanup = finish;
-    document.body.classList.add('occasion-delete-modal-open');
+    document.body.classList.add("occasion-delete-modal-open");
     document.body.appendChild(backdrop);
-    document.addEventListener('keydown', onKeydown);
-    backdrop.addEventListener('click', onBackdropClick);
-    closeBtn.addEventListener('click', onClose);
-    okBtn.addEventListener('click', onClose);
-    copyBtn.addEventListener('click', onCopy);
+    document.addEventListener("keydown", onKeydown);
+    backdrop.addEventListener("click", onBackdropClick);
+    closeBtn.addEventListener("click", onClose);
+    okBtn.addEventListener("click", onClose);
+    copyBtn.addEventListener("click", onCopy);
 
     modalEl.focus?.();
     okBtn.focus();
@@ -291,33 +307,37 @@ function showShareResultModal({ personName, url, copied }) {
 }
 
 async function handleShareIdeasByPerson() {
-  if (currentTab !== 'ideas') return;
+  if (currentTab !== "ideas") return;
 
   let personId = filters.person;
-  if (!personId || personId === 'all') {
+  if (!personId || personId === "all") {
     const selectedPerson = await showPersonSharePickerModal();
     if (!selectedPerson) return;
 
     personId = selectedPerson.id;
     filters.person = personId;
 
-    const personFilter = document.getElementById('filterPerson');
+    const personFilter = document.getElementById("filterPerson");
     if (personFilter) personFilter.value = personId;
     renderList();
     attachListListeners();
   }
 
-  const shareBtn = document.getElementById('sharePersonIdeasBtn');
-  const personName = persons.find(p => p.id === personId)?.name || '';
-  const oldText = shareBtn?.innerHTML || '';
+  const shareBtn = document.getElementById("sharePersonIdeasBtn");
+  const personName = persons.find((p) => p.id === personId)?.name || "";
+  const oldText = shareBtn?.innerHTML || "";
 
   if (shareBtn) {
     shareBtn.disabled = true;
-    shareBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Erstelle Link...';
+    shareBtn.innerHTML =
+      '<i class="bi bi-hourglass-split"></i> Erstelle Link...';
   }
 
   try {
-    const url = await createShareLinkGiftIdeasByPerson({ personId, personName });
+    const url = await createShareLinkGiftIdeasByPerson({
+      personId,
+      personName,
+    });
     let copied = false;
 
     if (navigator.clipboard?.writeText) {
@@ -332,7 +352,7 @@ async function handleShareIdeasByPerson() {
     await showShareResultModal({ personName, url, copied });
   } catch (err) {
     console.error(err);
-    alert('Share-Link konnte nicht erstellt werden: ' + (err?.message || err));
+    alert("Share-Link konnte nicht erstellt werden: " + (err?.message || err));
   } finally {
     if (shareBtn) {
       shareBtn.disabled = false;
@@ -342,82 +362,103 @@ async function handleShareIdeasByPerson() {
 }
 
 async function handleGenerateIdeasFromSuggestions() {
-  if (currentTab !== 'ideas') return;
+  if (currentTab !== "ideas") return;
 
   let personId = filters.person;
-  if (!personId || personId === 'all') {
-    showUiPopup('Bitte zuerst eine Person im Filter auswählen.', 'warning');
+  if (!personId || personId === "all") {
+    showUiPopup("Bitte zuerst eine Person im Filter auswählen.", "warning");
     return;
   }
 
-  const personName = persons.find(p => p.id === personId)?.name || '';
+  const personName = persons.find((p) => p.id === personId)?.name || "";
   if (!personName) {
-    showUiPopup('Die ausgewählte Person konnte nicht gefunden werden.', 'error');
+    showUiPopup(
+      "Die ausgewählte Person konnte nicht gefunden werden.",
+      "error",
+    );
     return;
   }
 
-  const sourceIdeas = ideas.filter(i => i.personId === personId);
-  const sourcePastGifts = getPastDisplayGifts().filter(g => g.personId === personId);
+  const sourceIdeas = ideas.filter((i) => i.personId === personId);
+  const sourcePastGifts = getPastDisplayGifts().filter(
+    (g) => g.personId === personId,
+  );
 
   const generated = generateIdeasForPerson({
     personId,
     personName,
     pastGifts: sourcePastGifts,
-    existingIdeas: sourceIdeas
+    existingIdeas: sourceIdeas,
   });
 
   generatedSuggestions = generated.map((s, idx) => ({
     ...s,
-    _id: buildGeneratedSuggestionId(s, idx)
+    _id: buildGeneratedSuggestionId(s, idx),
   }));
   generatedForPersonId = personId;
-  selectedGeneratedSuggestionIds = new Set(generatedSuggestions.map(s => s._id));
+  selectedGeneratedSuggestionIds = new Set(
+    generatedSuggestions.map((s) => s._id),
+  );
 
   renderList();
   attachListListeners();
   if (!generatedSuggestions.length) {
-    showUiPopup('Es konnten keine neuen Vorschläge generiert werden.', 'warning');
+    showUiPopup(
+      "Es konnten keine neuen Vorschläge generiert werden.",
+      "warning",
+    );
     return;
   }
-  showUiPopup(`${generatedSuggestions.length} Ideen wurden generiert.`, 'success');
+  showUiPopup(
+    `${generatedSuggestions.length} Ideen wurden generiert.`,
+    "success",
+  );
 }
 
 async function handleAdoptGeneratedSuggestions() {
-  if (currentTab !== 'ideas' || !generatedSuggestions.length) return;
-  const selected = generatedSuggestions.filter(s => selectedGeneratedSuggestionIds.has(s._id));
+  if (currentTab !== "ideas" || !generatedSuggestions.length) return;
+  const selected = generatedSuggestions.filter((s) =>
+    selectedGeneratedSuggestionIds.has(s._id),
+  );
   if (!selected.length) {
-    showUiPopup('Bitte wähle mindestens einen Vorschlag aus.', 'warning');
+    showUiPopup("Bitte wähle mindestens einen Vorschlag aus.", "warning");
     return;
   }
 
-  const person = persons.find(p => p.id === generatedForPersonId);
+  const person = persons.find((p) => p.id === generatedForPersonId);
   if (!person) {
-    showUiPopup('Die Person zu den Vorschlägen wurde nicht gefunden.', 'error');
+    showUiPopup("Die Person zu den Vorschlägen wurde nicht gefunden.", "error");
     return;
   }
 
   const existingContent = new Set(
     ideas
-      .filter(i => i.personId === generatedForPersonId)
-      .map(i => String(i.content || '').trim().toLowerCase())
+      .filter((i) => i.personId === generatedForPersonId)
+      .map((i) =>
+        String(i.content || "")
+          .trim()
+          .toLowerCase(),
+      ),
   );
 
   let adoptedCount = 0;
   for (const suggestion of selected) {
-    const normalizedContent = String(suggestion.content || '').trim().toLowerCase();
+    const normalizedContent = String(suggestion.content || "")
+      .trim()
+      .toLowerCase();
     if (normalizedContent && existingContent.has(normalizedContent)) continue;
 
     await createGiftIdea({
       personId: generatedForPersonId,
-      personName: person.name || '',
-      occasionId: suggestion.occasionId || '',
-      occasionName: suggestion.occasionName || '',
-      giftName: suggestion.title || '',
-      type: suggestion.type || 'text',
-      content: suggestion.content || suggestion.title || '',
-      note: '',
-      date: '',
-      status: 'offen'
+      personName: person.name || "",
+      occasionId: suggestion.occasionId || "",
+      occasionName: suggestion.occasionName || "",
+      giftName: suggestion.title || "",
+      type: suggestion.type || "text",
+      content: suggestion.content || suggestion.title || "",
+      note: "",
+      date: "",
+      status: "offen",
     });
 
     if (normalizedContent) existingContent.add(normalizedContent);
@@ -430,21 +471,21 @@ async function handleAdoptGeneratedSuggestions() {
   attachListListeners();
 
   if (!adoptedCount) {
-    showUiPopup('Keine neuen Ideen übernommen (bereits vorhanden).', 'warning');
+    showUiPopup("Keine neuen Ideen übernommen (bereits vorhanden).", "warning");
     return;
   }
-  showUiPopup(`${adoptedCount} Ideen wurden übernommen.`, 'success');
+  showUiPopup(`${adoptedCount} Ideen wurden übernommen.`, "success");
 }
 
 /**
  * Entfernt aus DB-Anlässen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
  */
 function getDeduplicatedOccasions() {
-  const fixedNames = FIXED_OCCASIONS.map(o => o.name.toLowerCase());
-  const seen       = new Set();
+  const fixedNames = FIXED_OCCASIONS.map((o) => o.name.toLowerCase());
+  const seen = new Set();
 
-  return occasions.filter(occ => {
-    const nameLower = (occ.name || '').toLowerCase().trim();
+  return occasions.filter((occ) => {
+    const nameLower = (occ.name || "").toLowerCase().trim();
     if (fixedNames.includes(nameLower)) return false;
     if (seen.has(nameLower)) return false;
     seen.add(nameLower);
@@ -453,22 +494,22 @@ function getDeduplicatedOccasions() {
 }
 
 function showLoading(show) {
-  document.getElementById('giftsLoading')?.classList.toggle('d-none', !show);
+  document.getElementById("giftsLoading")?.classList.toggle("d-none", !show);
 }
 
 function isHttpUrl(value) {
-  const url = String(value || '').trim();
+  const url = String(value || "").trim();
   return /^https?:\/\/\S+$/i.test(url);
 }
 
 function normalizeHttpUrl(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
-function parseGiftNoteMedia(noteValue = '') {
-  const lines = String(noteValue || '').split(/\r?\n/);
-  let imageUrl = '';
-  let linkUrl = '';
+function parseGiftNoteMedia(noteValue = "") {
+  const lines = String(noteValue || "").split(/\r?\n/);
+  let imageUrl = "";
+  let linkUrl = "";
   const cleanLines = [];
 
   lines.forEach((line) => {
@@ -486,13 +527,13 @@ function parseGiftNoteMedia(noteValue = '') {
   });
 
   return {
-    note: cleanLines.join('\n').trim(),
+    note: cleanLines.join("\n").trim(),
     imageUrl,
-    linkUrl
+    linkUrl,
   };
 }
 
-function buildGiftNoteWithMedia(noteValue = '', imageUrl = '', linkUrl = '') {
+function buildGiftNoteWithMedia(noteValue = "", imageUrl = "", linkUrl = "") {
   const parsed = parseGiftNoteMedia(noteValue);
   const lines = [];
 
@@ -500,37 +541,46 @@ function buildGiftNoteWithMedia(noteValue = '', imageUrl = '', linkUrl = '') {
   if (imageUrl) lines.push(`[Bild] ${imageUrl}`);
   if (linkUrl) lines.push(`[Link] ${linkUrl}`);
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 function getIdeaMedia(item = {}) {
-  const imageUrl = item.imageUrl || (item.type === 'image' ? item.content : '') || '';
-  const linkUrl = item.linkUrl || (item.type === 'link' ? item.content : '') || '';
+  const imageUrl =
+    item.imageUrl || (item.type === "image" ? item.content : "") || "";
+  const linkUrl =
+    item.linkUrl || (item.type === "link" ? item.content : "") || "";
   return { imageUrl, linkUrl };
 }
 
-function showUiPopup(message, type = 'info') {
-  const containerId = 'giftsUiPopupContainer';
+function showUiPopup(message, type = "info") {
+  const containerId = "giftsUiPopupContainer";
   let container = document.getElementById(containerId);
 
   if (!container) {
-    container = document.createElement('div');
+    container = document.createElement("div");
     container.id = containerId;
-    container.style.position = 'fixed';
-    container.style.top = '1rem';
-    container.style.right = '1rem';
-    container.style.zIndex = '2000';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.gap = '0.5rem';
-    container.style.maxWidth = 'min(92vw, 380px)';
+    container.style.position = "fixed";
+    container.style.top = "1rem";
+    container.style.right = "1rem";
+    container.style.zIndex = "2000";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.gap = "0.5rem";
+    container.style.maxWidth = "min(92vw, 380px)";
     document.body.appendChild(container);
   }
 
-  const el = document.createElement('div');
-  const mapped = type === 'error' ? 'danger' : (type === 'warning' ? 'warning' : (type === 'success' ? 'success' : 'primary'));
+  const el = document.createElement("div");
+  const mapped =
+    type === "error"
+      ? "danger"
+      : type === "warning"
+        ? "warning"
+        : type === "success"
+          ? "success"
+          : "primary";
   el.className = `alert alert-${mapped} shadow-sm py-2 px-3 mb-0`;
-  el.setAttribute('role', 'alert');
+  el.setAttribute("role", "alert");
   el.textContent = message;
   container.appendChild(el);
 
@@ -542,33 +592,42 @@ function showUiPopup(message, type = 'info') {
 
 function clearGeneratedSuggestions() {
   generatedSuggestions = [];
-  generatedForPersonId = '';
+  generatedForPersonId = "";
   selectedGeneratedSuggestionIds = new Set();
 }
 
 function buildGeneratedSuggestionId(suggestion, idx) {
-  const base = String(suggestion?.content || suggestion?.title || 'idee').replace(/\s+/g, '-').toLowerCase();
+  const base = String(suggestion?.content || suggestion?.title || "idee")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
   return `gs-${Date.now()}-${idx}-${base.slice(0, 24)}`;
 }
 
 function renderGeneratedSuggestionsPanel() {
-  if (currentTab !== 'ideas' || !generatedSuggestions.length) return '';
+  if (currentTab !== "ideas" || !generatedSuggestions.length) return "";
 
-  const personName = persons.find(p => p.id === generatedForPersonId)?.name || 'Unbekannt';
-  const selectedCount = generatedSuggestions.filter(s => selectedGeneratedSuggestionIds.has(s._id)).length;
+  const personName =
+    persons.find((p) => p.id === generatedForPersonId)?.name || "Unbekannt";
+  const selectedCount = generatedSuggestions.filter((s) =>
+    selectedGeneratedSuggestionIds.has(s._id),
+  ).length;
 
-  const rows = generatedSuggestions.map((s) => {
-    const checked = selectedGeneratedSuggestionIds.has(s._id) ? 'checked' : '';
-    return `
+  const rows = generatedSuggestions
+    .map((s) => {
+      const checked = selectedGeneratedSuggestionIds.has(s._id)
+        ? "checked"
+        : "";
+      return `
       <div class="border rounded-3 p-2 bg-white d-flex gap-2 align-items-start">
         <input class="form-check-input mt-1 generated-suggestion-check" type="checkbox" data-suggestion-id="${s._id}" ${checked}>
         <div class="flex-grow-1">
-          <div class="fw-semibold">${s.title || s.content || 'Vorschlag'}</div>
-          <div class="small text-muted">${s.reason || 'Automatisch generiert'}</div>
+          <div class="fw-semibold">${s.title || s.content || "Vorschlag"}</div>
+          <div class="small text-muted">${s.reason || "Automatisch generiert"}</div>
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   return `
     <div class="card mb-3">
@@ -584,7 +643,7 @@ function renderGeneratedSuggestionsPanel() {
           <button class="btn btn-sm btn-outline-secondary" id="selectAllGeneratedBtn">
             <i class="bi bi-check2-square"></i> Alle auswählen
           </button>
-          <button class="btn btn-sm btn-success" id="adoptGeneratedBtn" ${selectedCount ? '' : 'disabled'}>
+          <button class="btn btn-sm btn-success" id="adoptGeneratedBtn" ${selectedCount ? "" : "disabled"}>
             <i class="bi bi-download"></i> Ausgewählte übernehmen (${selectedCount})
           </button>
           <button class="btn btn-sm btn-outline-danger" id="clearGeneratedBtn">
@@ -600,7 +659,7 @@ function renderGeneratedSuggestionsPanel() {
 }
 
 function parseDateOnly(value) {
-  const raw = String(value || '').trim();
+  const raw = String(value || "").trim();
   if (!raw) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (!m) return null;
@@ -611,8 +670,12 @@ function parseDateOnly(value) {
 
 function formatDisplayDate(value) {
   const d = parseDateOnly(value);
-  if (!d) return '-';
-  return d.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+  if (!d) return "-";
+  return d.toLocaleDateString("de-DE", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function isDateInPast(value) {
@@ -624,15 +687,17 @@ function isDateInPast(value) {
 }
 
 function normalizeIdeaStatus(status) {
-  const normalized = String(status || '').toLowerCase();
-  if (normalized === 'erledigt') return 'besorgt';
-  if (normalized === 'besorgt') return 'besorgt';
-  return 'offen';
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "erledigt") return "besorgt";
+  if (normalized === "besorgt") return "besorgt";
+  return "offen";
 }
 
 function getPastDisplayGifts() {
   const plannedByRule = gifts.filter((gift) => isDateInPast(gift?.date));
-  const explicitPastByDate = pastGifts.filter((gift) => isDateInPast(gift?.date));
+  const explicitPastByDate = pastGifts.filter((gift) =>
+    isDateInPast(gift?.date),
+  );
 
   const map = new Map();
   [...explicitPastByDate, ...plannedByRule].forEach((gift) => {
@@ -640,7 +705,9 @@ function getPastDisplayGifts() {
     if (!map.has(gift.id)) map.set(gift.id, gift);
   });
 
-  return [...map.values()].sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
+  return [...map.values()].sort((a, b) =>
+    String(b?.date || "").localeCompare(String(a?.date || "")),
+  );
 }
 
 function getPlannedDisplayGifts() {
@@ -655,12 +722,12 @@ async function loadData() {
       listGiftIdeas().catch(() => []),
       listPastGifts().catch(() => []),
       listPersons().catch(() => []),
-      listOccasions().catch(() => [])
+      listOccasions().catch(() => []),
     ]);
-    gifts     = g || [];
-    ideas     = i || [];
+    gifts = g || [];
+    ideas = i || [];
     pastGifts = pg || [];
-    persons   = p || [];
+    persons = p || [];
     occasions = o || [];
   } finally {
     showLoading(false);
@@ -668,20 +735,25 @@ async function loadData() {
 }
 
 function applyFilters(src) {
-  return src.filter(item => {
+  return src.filter((item) => {
     if (filters.search) {
       const fields = [
         item.personName,
-        item.occasionName || '',
-        item.giftName     || '',
-        currentTab === 'ideas' ? item.content : item.note
+        item.occasionName || "",
+        item.giftName || "",
+        currentTab === "ideas" ? item.content : item.note,
       ];
-      if (!fields.join(' ').toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (
+        !fields.join(" ").toLowerCase().includes(filters.search.toLowerCase())
+      )
+        return false;
     }
-    if (filters.person   !== 'all' && item.personId   !== filters.person)   return false;
-    if (filters.occasion !== 'all' && item.occasionId !== filters.occasion) return false;
-    if (filters.status !== 'all') {
-      if (currentTab === 'ideas') {
+    if (filters.person !== "all" && item.personId !== filters.person)
+      return false;
+    if (filters.occasion !== "all" && item.occasionId !== filters.occasion)
+      return false;
+    if (filters.status !== "all") {
+      if (currentTab === "ideas") {
         if (normalizeIdeaStatus(item.status) !== filters.status) return false;
       } else if (item.status !== filters.status) {
         return false;
@@ -692,18 +764,19 @@ function applyFilters(src) {
 }
 
 function resolveOccasionName(occasionId) {
-  if (!occasionId) return '';
-  const fixed  = FIXED_OCCASIONS.find(o => o.id === occasionId);
-  const custom = occasions.find(o => o.id === occasionId);
-  return (fixed || custom)?.name || '';
+  if (!occasionId) return "";
+  const fixed = FIXED_OCCASIONS.find((o) => o.id === occasionId);
+  const custom = occasions.find((o) => o.id === occasionId);
+  return (fixed || custom)?.name || "";
 }
 
 // ---------- Rendering ----------
 
 function renderFilters(container) {
-  const statuses = currentTab === 'ideas'
-    ? ['all', 'offen', 'besorgt']
-    : ['all', 'offen', 'besorgt', 'ueberreicht'];
+  const statuses =
+    currentTab === "ideas"
+      ? ["all", "offen", "besorgt"]
+      : ["all", "offen", "besorgt", "ueberreicht"];
 
   const customOccasions = getDeduplicatedOccasions();
 
@@ -712,75 +785,113 @@ function renderFilters(container) {
       <div style="flex: 1; min-width: 250px;">
         <input type="text" id="giftsSearch" class="form-control"
                placeholder="Suche nach Name, Person, Anlass..."
-               value="${filters.search || ''}">
+               value="${filters.search || ""}">
       </div>
 
       <div>
         <select id="filterPerson" class="form-select">
-          <option value="all" ${filters.person === 'all' ? 'selected' : ''}>Alle Personen</option>
-          ${persons.map(p => `
-            <option value="${p.id}" ${filters.person === p.id ? 'selected' : ''}>${p.name}</option>
-          `).join('')}
+          <option value="all" ${filters.person === "all" ? "selected" : ""}>Alle Personen</option>
+          ${persons
+            .map(
+              (p) => `
+            <option value="${p.id}" ${filters.person === p.id ? "selected" : ""}>${p.name}</option>
+          `,
+            )
+            .join("")}
         </select>
       </div>
 
       <div>
         <select id="filterOccasion" class="form-select">
-          <option value="all" ${filters.occasion === 'all' ? 'selected' : ''}>Alle Anlässe</option>
+          <option value="all" ${filters.occasion === "all" ? "selected" : ""}>Alle Anlässe</option>
           <optgroup label="Feste Anlässe">
-            ${FIXED_OCCASIONS.map(o => `
-              <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
-            `).join('')}
+            ${FIXED_OCCASIONS.map(
+              (o) => `
+              <option value="${o.id}" ${filters.occasion === o.id ? "selected" : ""}>${o.name}</option>
+            `,
+            ).join("")}
           </optgroup>
-          ${customOccasions.length ? `
+          ${
+            customOccasions.length
+              ? `
             <optgroup label="Eigene Anlässe">
-              ${customOccasions.map(o => `
-                <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
-              `).join('')}
+              ${customOccasions
+                .map(
+                  (o) => `
+                <option value="${o.id}" ${filters.occasion === o.id ? "selected" : ""}>${o.name}</option>
+              `,
+                )
+                .join("")}
             </optgroup>
-          ` : ''}
+          `
+              : ""
+          }
         </select>
       </div>
 
       <div>
         <select id="filterStatus" class="form-select">
-          ${statuses.map(s => {
-            let label = s === 'all' ? 'Alle Status' : s.charAt(0).toUpperCase() + s.slice(1);
-            if (currentTab === 'ideas') {
-              label = s === 'all' ? 'Alle Ideen' : s.charAt(0).toUpperCase() + s.slice(1);
-            }
-            return `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${label}</option>`;
-          }).join('')}
+          ${statuses
+            .map((s) => {
+              let label =
+                s === "all"
+                  ? "Alle Status"
+                  : s.charAt(0).toUpperCase() + s.slice(1);
+              if (currentTab === "ideas") {
+                label =
+                  s === "all"
+                    ? "Alle Ideen"
+                    : s.charAt(0).toUpperCase() + s.slice(1);
+              }
+              return `<option value="${s}" ${filters.status === s ? "selected" : ""}>${label}</option>`;
+            })
+            .join("")}
         </select>
       </div>
 
       <div class="ms-auto">
-        ${currentTab === 'ideas' ? `
+        ${
+          currentTab === "ideas"
+            ? `
           <button class="btn btn-outline-warning me-2" id="generateIdeasBtn">
             <i class="bi bi-stars"></i> Ideen generieren
           </button>
           <button class="btn btn-outline-primary me-2" id="sharePersonIdeasBtn">
             <i class="bi bi-share"></i> Teilen
           </button>
-        ` : ''}
-        ${currentTab !== 'past' ? `
+        `
+            : ""
+        }
+        ${
+          currentTab !== "past"
+            ? `
           <button class="btn btn-primary" id="addItemBtn">
             <i class="bi bi-plus-circle"></i> Neu
           </button>
-        ` : ''}
+        `
+            : ""
+        }
       </div>
     </div>
   `;
 }
 
 function renderList() {
-  const listDiv = document.getElementById('listContainer');
-  const source  = currentTab === 'gifts' ? getPlannedDisplayGifts() : (currentTab === 'ideas' ? ideas : getPastDisplayGifts());
-  const src     = applyFilters(source);
+  const listDiv = document.getElementById("listContainer");
+  const source =
+    currentTab === "gifts"
+      ? getPlannedDisplayGifts()
+      : currentTab === "ideas"
+        ? ideas
+        : getPastDisplayGifts();
+  const src = applyFilters(source);
   const suggestionsPanel = renderGeneratedSuggestionsPanel();
-  const sectionTitle = currentTab === 'gifts'
-    ? 'Geschenke'
-    : (currentTab === 'ideas' ? 'Geschenkideen' : 'Vergangene Geschenke');
+  const sectionTitle =
+    currentTab === "gifts"
+      ? "Geschenke"
+      : currentTab === "ideas"
+        ? "Geschenkideen"
+        : "Vergangene Geschenke";
 
   if (!src.length) {
     listDiv.innerHTML = `
@@ -788,17 +899,21 @@ function renderList() {
       <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size: 3rem;"></i>
         <h5 class="mt-3">Keine ${sectionTitle} gefunden</h5>
-        <p>${currentTab === 'past' ? 'Keine Historien-Eintraege vorhanden.' : `Klicke auf "Neu" um ${currentTab === 'gifts' ? 'ein Geschenk' : 'eine Geschenkidee'} hinzuzufuegen.`}</p>
+        <p>${currentTab === "past" ? "Keine Historien-Eintraege vorhanden." : `Klicke auf "Neu" um ${currentTab === "gifts" ? "ein Geschenk" : "eine Geschenkidee"} hinzuzufuegen.`}</p>
       </div>
     `;
     return;
   }
 
-  const cards = src.map(item => (
-    currentTab === 'gifts'
-      ? renderGiftCard(item)
-      : (currentTab === 'ideas' ? renderIdeaCard(item) : renderPastGiftCard(item))
-  )).join('');
+  const cards = src
+    .map((item) =>
+      currentTab === "gifts"
+        ? renderGiftCard(item)
+        : currentTab === "ideas"
+          ? renderIdeaCard(item)
+          : renderPastGiftCard(item),
+    )
+    .join("");
 
   listDiv.innerHTML = `
     ${suggestionsPanel}
@@ -808,16 +923,26 @@ function renderList() {
   if (focusItemId) {
     const target = listDiv.querySelector(`[data-id="${focusItemId}"]`);
     if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      target.classList.add('border', 'border-3', 'border-primary');
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("border", "border-3", "border-primary");
     }
     focusItemId = null;
   }
 }
 function renderGiftCard(item) {
-  const media = parseGiftNoteMedia(item.note || '');
-  const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const media = parseGiftNoteMedia(item.note || "");
+  const statusBadge =
+    item.status === "ueberreicht"
+      ? "success"
+      : item.status === "besorgt"
+        ? "info"
+        : "warning";
+  const statusText =
+    item.status === "ueberreicht"
+      ? "Überreicht"
+      : item.status === "besorgt"
+        ? "Besorgt"
+        : "Offen";
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
@@ -825,7 +950,7 @@ function renderGiftCard(item) {
         <div class="card-body">
           <h2 class="gift-primary-title">
             <i class="bi bi-gift-fill text-primary"></i>
-            ${item.giftName || item.occasionName || 'Geschenk'}
+            ${item.giftName || item.occasionName || "Geschenk"}
           </h2>
 
           <div class="mb-3">
@@ -843,41 +968,61 @@ function renderGiftCard(item) {
               <span class="fw-semibold">Person:</span>
               <span>${item.personName}</span>
             </div>
-            ${item.occasionName ? `
+            ${
+              item.occasionName
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-star text-muted"></i>
                 <span class="fw-semibold">Anlass:</span>
                 <span>${item.occasionName}</span>
               </div>
-            ` : ''}
-            ${media.note ? `
+            `
+                : ""
+            }
+            ${
+              media.note
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-chat-left-text text-muted"></i>
                 <span class="fw-semibold">Notiz:</span>
                 <span class="text-muted">${media.note}</span>
               </div>
-            ` : ''}
-            ${media.linkUrl ? `
+            `
+                : ""
+            }
+            ${
+              media.linkUrl
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-link-45deg text-muted"></i>
                 <span class="fw-semibold">Link:</span>
                 <a href="${media.linkUrl}" target="_blank" class="gift-link text-truncate">${media.linkUrl}</a>
               </div>
-            ` : ''}
-            ${media.imageUrl ? `
+            `
+                : ""
+            }
+            ${
+              media.imageUrl
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-image text-muted"></i>
                 <span class="fw-semibold">Bild:</span>
                 <a href="${media.imageUrl}" target="_blank" class="gift-link text-truncate">Bild öffnen</a>
               </div>
-            ` : ''}
-            ${item.sourceIdeaId ? `
+            `
+                : ""
+            }
+            ${
+              item.sourceIdeaId
+                ? `
               <div class="gift-meta-item">
                 <small class="badge bg-light text-dark">
                   <i class="bi bi-lightbulb"></i> Konvertiert aus Idee
                 </small>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
 
           <div class="d-flex gap-2 mt-3">
@@ -896,13 +1041,13 @@ function renderGiftCard(item) {
 
 function renderIdeaCard(item) {
   const ideaStatus = normalizeIdeaStatus(item.status);
-  const statusBadge = ideaStatus === 'besorgt' ? 'info' : 'warning';
-  const statusText  = ideaStatus === 'besorgt' ? 'Besorgt' : 'Offen';
-  const cardTitle   = item.giftName || item.occasionName || 'Geschenkidee';
-  const detailsText = item.note || (!(item.giftName) ? item.content : '');
+  const statusBadge = ideaStatus === "besorgt" ? "info" : "warning";
+  const statusText = ideaStatus === "besorgt" ? "Besorgt" : "Offen";
+  const cardTitle = item.giftName || item.occasionName || "Geschenkidee";
+  const detailsText = item.note || (!item.giftName ? item.content : "");
   const media = getIdeaMedia(item);
 
-  let contentPreview = '';
+  let contentPreview = "";
   if (media.imageUrl) {
     contentPreview = `
       <div class="text-center gift-image-preview">
@@ -944,23 +1089,31 @@ function renderIdeaCard(item) {
             <div class="gift-meta-item gift-idea-person-row">
               <i class="bi bi-person text-muted"></i>
               <span class="fw-semibold">Person:</span>
-              <span class="gift-idea-person">${item.personName || '-'}</span>
+              <span class="gift-idea-person">${item.personName || "-"}</span>
             </div>
-            ${item.occasionName && item.occasionName !== cardTitle ? `
+            ${
+              item.occasionName && item.occasionName !== cardTitle
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-star text-muted"></i>
                 <span class="fw-semibold">Anlass:</span>
                 <span>${item.occasionName}</span>
               </div>
-            ` : ''}
-            ${item.date ? `
+            `
+                : ""
+            }
+            ${
+              item.date
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-calendar-event text-muted"></i>
                 <span class="fw-semibold">Datum:</span>
                 <span>${formatDisplayDate(item.date)}</span>
               </div>
-            ` : ''}
-            ${contentPreview ? `<div class="gift-idea-content">${contentPreview}</div>` : ''}
+            `
+                : ""
+            }
+            ${contentPreview ? `<div class="gift-idea-content">${contentPreview}</div>` : ""}
           </div>
 
           <div class="d-flex gap-2">
@@ -981,9 +1134,19 @@ function renderIdeaCard(item) {
 }
 
 function renderPastGiftCard(item) {
-  const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
-  const title = item.giftName || item.occasionName || 'Vergangenes Geschenk';
+  const statusBadge =
+    item.status === "ueberreicht"
+      ? "success"
+      : item.status === "besorgt"
+        ? "info"
+        : "warning";
+  const statusText =
+    item.status === "ueberreicht"
+      ? "Überreicht"
+      : item.status === "besorgt"
+        ? "Besorgt"
+        : "Offen";
+  const title = item.giftName || item.occasionName || "Vergangenes Geschenk";
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
@@ -1008,15 +1171,19 @@ function renderPastGiftCard(item) {
             <div class="gift-meta-item">
               <i class="bi bi-person text-muted"></i>
               <span class="fw-semibold">Person:</span>
-              <span>${item.personName || '-'}</span>
+              <span>${item.personName || "-"}</span>
             </div>
-            ${item.note ? `
+            ${
+              item.note
+                ? `
               <div class="gift-meta-item">
                 <i class="bi bi-chat-left-text text-muted"></i>
                 <span class="fw-semibold">Notiz:</span>
                 <span class="text-muted">${item.note}</span>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         </div>
       </div>
@@ -1024,17 +1191,17 @@ function renderPastGiftCard(item) {
   `;
 }
 function renderForm() {
-  const formDiv = document.getElementById('formContainer');
+  const formDiv = document.getElementById("formContainer");
 
-  if (formMode === 'none') {
-    formDiv.innerHTML = '';
-    formDiv.classList.add('d-none');
+  if (formMode === "none") {
+    formDiv.innerHTML = "";
+    formDiv.classList.add("d-none");
     return;
   }
 
-  formDiv.classList.remove('d-none');
+  formDiv.classList.remove("d-none");
 
-  if (formMode === 'convert') {
+  if (formMode === "convert") {
     renderConvertForm(formDiv);
     return;
   }
@@ -1043,10 +1210,14 @@ function renderForm() {
 }
 
 function renderConvertForm(formDiv) {
-  const idea = ideas.find(i => i.id === convertIdeaId);
-  if (!idea) { formMode = 'none'; renderForm(); return; }
-  const defaultGiftName = (idea.giftName || idea.content || '').trim();
-  const defaultConvertDate = idea.date || '';
+  const idea = ideas.find((i) => i.id === convertIdeaId);
+  if (!idea) {
+    formMode = "none";
+    renderForm();
+    return;
+  }
+  const defaultGiftName = (idea.giftName || idea.content || "").trim();
+  const defaultConvertDate = idea.date || "";
 
   formDiv.innerHTML = `
     <div class="card">
@@ -1100,25 +1271,27 @@ function renderConvertForm(formDiv) {
     </div>
   `;
 
-  const dateInput = document.getElementById('convertDate');
-  const dateGroup = dateInput.closest('.input-group');
-  dateGroup.style.cursor = 'pointer';
-  dateGroup.addEventListener('click', () => dateInput.showPicker?.());
+  const dateInput = document.getElementById("convertDate");
+  const dateGroup = dateInput.closest(".input-group");
+  dateGroup.style.cursor = "pointer";
+  dateGroup.addEventListener("click", () => dateInput.showPicker?.());
 }
 
 function renderEntityForm(formDiv) {
-  const isEdit  = formMode === 'edit';
-  const item    = isEdit
-    ? (currentTab === 'gifts' ? gifts.find(g => g.id === editingItem) : ideas.find(i => i.id === editingItem))
+  const isEdit = formMode === "edit";
+  const item = isEdit
+    ? currentTab === "gifts"
+      ? gifts.find((g) => g.id === editingItem)
+      : ideas.find((i) => i.id === editingItem)
     : null;
-  const title   = `${isEdit ? 'Bearbeiten' : 'Neu'}: ${currentTab === 'gifts' ? 'Geschenk' : 'Geschenkidee'}`;
+  const title = `${isEdit ? "Bearbeiten" : "Neu"}: ${currentTab === "gifts" ? "Geschenk" : "Geschenkidee"}`;
   const customOccasions = getDeduplicatedOccasions();
 
   formDiv.innerHTML = `
     <div class="card">
       <div class="card-header">
         <h5 class="mb-0">
-          <i class="bi bi-${isEdit ? 'pencil' : 'plus-circle'}"></i> ${title}
+          <i class="bi bi-${isEdit ? "pencil" : "plus-circle"}"></i> ${title}
         </h5>
       </div>
       <div class="card-body">
@@ -1128,9 +1301,13 @@ function renderEntityForm(formDiv) {
               <label class="form-label">Person <span class="text-danger">*</span></label>
               <select id="formPerson" class="form-select" required>
                 <option value="">Bitte wählen...</option>
-                ${persons.map(p => `
-                  <option value="${p.id}" ${item && item.personId === p.id ? 'selected' : ''}>${p.name}</option>
-                `).join('')}
+                ${persons
+                  .map(
+                    (p) => `
+                  <option value="${p.id}" ${item && item.personId === p.id ? "selected" : ""}>${p.name}</option>
+                `,
+                  )
+                  .join("")}
               </select>
             </div>
 
@@ -1139,17 +1316,27 @@ function renderEntityForm(formDiv) {
               <select id="formOccasion" class="form-select">
                 <option value="">Kein spezifischer Anlass</option>
                 <optgroup label="Feste Anlässe">
-                  ${FIXED_OCCASIONS.map(o => `
-                    <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
-                  `).join('')}
+                  ${FIXED_OCCASIONS.map(
+                    (o) => `
+                    <option value="${o.id}" ${item && item.occasionId === o.id ? "selected" : ""}>${o.name}</option>
+                  `,
+                  ).join("")}
                 </optgroup>
-                ${customOccasions.length ? `
+                ${
+                  customOccasions.length
+                    ? `
                   <optgroup label="Eigene Anlässe">
-                    ${customOccasions.map(o => `
-                      <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
-                    `).join('')}
+                    ${customOccasions
+                      .map(
+                        (o) => `
+                      <option value="${o.id}" ${item && item.occasionId === o.id ? "selected" : ""}>${o.name}</option>
+                    `,
+                      )
+                      .join("")}
                   </optgroup>
-                ` : ''}
+                `
+                    : ""
+                }
                 <option value="__custom__">âž• Individueller Anlass...</option>
               </select>
             </div>
@@ -1161,7 +1348,7 @@ function renderEntityForm(formDiv) {
             </div>
           </div>
 
-          ${currentTab === 'ideas' ? renderIdeaFormFields(item) : renderGiftFormFields(item)}
+          ${currentTab === "ideas" ? renderIdeaFormFields(item) : renderGiftFormFields(item)}
 
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
@@ -1170,11 +1357,15 @@ function renderEntityForm(formDiv) {
             <button type="button" class="btn btn-outline-secondary" id="cancelBtn">
               <i class="bi bi-x-circle"></i> Abbrechen
             </button>
-            ${isEdit ? `
+            ${
+              isEdit
+                ? `
               <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
                 <i class="bi bi-trash"></i> Löschen
               </button>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         </form>
       </div>
@@ -1182,44 +1373,48 @@ function renderEntityForm(formDiv) {
   `;
 
   // Custom Occasion Toggle
-  const occasionSelect = document.getElementById('formOccasion');
-  const customDiv      = document.getElementById('customOccasionDiv');
+  const occasionSelect = document.getElementById("formOccasion");
+  const customDiv = document.getElementById("customOccasionDiv");
   if (occasionSelect) {
-    occasionSelect.addEventListener('change', () => {
-      const isCustom = occasionSelect.value === '__custom__';
-      customDiv.classList.toggle('d-none', !isCustom);
-      document.getElementById('formCustomOccasion').required = isCustom;
+    occasionSelect.addEventListener("change", () => {
+      const isCustom = occasionSelect.value === "__custom__";
+      customDiv.classList.toggle("d-none", !isCustom);
+      document.getElementById("formCustomOccasion").required = isCustom;
     });
   }
 
   // Datepicker für Geschenke
-  if (currentTab === 'gifts') {
-    const dateInput = document.getElementById('formDate');
-    const dateGroup = dateInput?.closest('.input-group');
+  if (currentTab === "gifts") {
+    const dateInput = document.getElementById("formDate");
+    const dateGroup = dateInput?.closest(".input-group");
     if (dateGroup) {
-      dateGroup.style.cursor = 'pointer';
-      dateGroup.addEventListener('click', () => dateInput.showPicker?.());
+      dateGroup.style.cursor = "pointer";
+      dateGroup.addEventListener("click", () => dateInput.showPicker?.());
     }
-  } else if (currentTab === 'ideas') {
-    const ideaDateInput = document.getElementById('formIdeaDate');
-    const ideaDateGroup = ideaDateInput?.closest('.input-group');
+  } else if (currentTab === "ideas") {
+    const ideaDateInput = document.getElementById("formIdeaDate");
+    const ideaDateGroup = ideaDateInput?.closest(".input-group");
     if (ideaDateGroup) {
-      ideaDateGroup.style.cursor = 'pointer';
-      ideaDateGroup.addEventListener('click', () => ideaDateInput.showPicker?.());
+      ideaDateGroup.style.cursor = "pointer";
+      ideaDateGroup.addEventListener("click", () =>
+        ideaDateInput.showPicker?.(),
+      );
     }
   }
 }
 
 function renderIdeaFormFields(item) {
   const media = getIdeaMedia(item || {});
-  const isTextIdea = item ? (item.type !== 'link' && item.type !== 'image') : true;
+  const isTextIdea = item
+    ? item.type !== "link" && item.type !== "image"
+    : true;
   const ideaGiftName = item
-    ? (item.giftName || (isTextIdea && !(item.note) ? item.content : '') || '')
-    : '';
+    ? item.giftName || (isTextIdea && !item.note ? item.content : "") || ""
+    : "";
   const ideaDetails = item
-    ? (item.note || (isTextIdea && !(item.giftName) ? item.content : '') || '')
-    : '';
-  const ideaDate = item?.date || '';
+    ? item.note || (isTextIdea && !item.giftName ? item.content : "") || ""
+    : "";
+  const ideaDate = item?.date || "";
 
   return `
     <div class="mb-3">
@@ -1248,36 +1443,35 @@ function renderIdeaFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Medien</label>
       <div class="input-group mt-2">
-        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ''}">
+        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ""}">
         <button type="button" class="btn btn-outline-secondary" id="mediaOpenImageBtn">
           <i class="bi bi-box-arrow-up-right"></i> Bild öffnen
         </button>
       </div>
       <div class="input-group mt-2">
-        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ''}">
+        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ""}">
         <button type="button" class="btn btn-outline-secondary" id="mediaCopyLinkBtn">
           <i class="bi bi-clipboard"></i> Link kopieren
         </button>
       </div>
     </div>
-
     <div class="mb-3">
       <label class="form-label">Status</label>
       <select id="formStatus" class="form-select">
-        <option value="offen"    ${normalizeIdeaStatus(item?.status) === 'offen' ? 'selected' : ''}>Offen</option>
-        <option value="besorgt"  ${normalizeIdeaStatus(item?.status) === 'besorgt' ? 'selected' : ''}>Besorgt</option>
+        <option value="offen"    ${normalizeIdeaStatus(item?.status) === "offen" ? "selected" : ""}>Offen</option>
+        <option value="besorgt"  ${normalizeIdeaStatus(item?.status) === "besorgt" ? "selected" : ""}>Besorgt</option>
       </select>
     </div>
   `;
 }
 function renderGiftFormFields(item) {
-  const media = parseGiftNoteMedia(item?.note || '');
+  const media = parseGiftNoteMedia(item?.note || "");
 
   return `
     <div class="mb-3">
       <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
       <input type="text" id="formGiftName" class="form-control"
-             value="${item ? item.giftName || '' : ''}" required
+             value="${item ? item.giftName || "" : ""}" required
              placeholder="z.B. Amazon Gutschein, Buch 'Die Säulen der Erde'">
     </div>
 
@@ -1285,7 +1479,7 @@ function renderGiftFormFields(item) {
       <label class="form-label">Datum <span class="text-danger">*</span></label>
       <div class="input-group">
         <input type="date" id="formDate" class="form-control"
-               value="${item ? item.date : ''}" required style="cursor: pointer;">
+               value="${item ? item.date : ""}" required style="cursor: pointer;">
         <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
       </div>
     </div>
@@ -1293,19 +1487,19 @@ function renderGiftFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Notiz</label>
       <textarea id="formNote" class="form-control" rows="3"
-                placeholder="ToDos und weitere Infos hier reinschreiben">${media.note || ''}</textarea>
+                placeholder="ToDos und weitere Infos hier reinschreiben">${media.note || ""}</textarea>
     </div>
 
     <div class="mb-3">
       <label class="form-label">Medien</label>
       <div class="input-group mt-2">
-        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ''}">
+        <input type="url" id="formImageUrl" class="form-control" placeholder="Bild-URL (https://...)" value="${media.imageUrl || ""}">
         <button type="button" class="btn btn-outline-secondary" id="mediaOpenImageBtn">
           <i class="bi bi-box-arrow-up-right"></i> Bild öffnen
         </button>
       </div>
       <div class="input-group mt-2">
-        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ''}">
+        <input type="url" id="formLinkUrl" class="form-control" placeholder="Link-URL (https://...)" value="${media.linkUrl || ""}">
         <button type="button" class="btn btn-outline-secondary" id="mediaCopyLinkBtn">
           <i class="bi bi-clipboard"></i> Link kopieren
         </button>
@@ -1315,9 +1509,9 @@ function renderGiftFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Status</label>
       <select id="formStatus" class="form-select">
-        <option value="offen"      ${item && item.status === 'offen'      ? 'selected' : ''}>Offen</option>
-        <option value="besorgt"    ${item && item.status === 'besorgt'    ? 'selected' : ''}>Besorgt</option>
-        <option value="ueberreicht" ${item && item.status === 'ueberreicht' ? 'selected' : ''}>Überreicht</option>
+        <option value="offen"      ${item && item.status === "offen" ? "selected" : ""}>Offen</option>
+        <option value="besorgt"    ${item && item.status === "besorgt" ? "selected" : ""}>Besorgt</option>
+        <option value="ueberreicht" ${item && item.status === "ueberreicht" ? "selected" : ""}>Überreicht</option>
       </select>
     </div>
   `;
@@ -1328,20 +1522,22 @@ function attachEventListeners(ctx) {
   removeAllListeners();
 
   // Tabs
-  document.querySelectorAll('#giftsTabs .nav-link').forEach(tab => {
-    addListener(tab, 'click', (e) => {
+  document.querySelectorAll("#giftsTabs .nav-link").forEach((tab) => {
+    addListener(tab, "click", (e) => {
       e.preventDefault();
-      currentTab    = tab.dataset.tab;
-      filters       = { search: '', person: 'all', status: 'all', occasion: 'all' };
-      editingItem   = null;
-      formMode      = 'none';
+      currentTab = tab.dataset.tab;
+      filters = { search: "", person: "all", status: "all", occasion: "all" };
+      editingItem = null;
+      formMode = "none";
       convertIdeaId = null;
       clearGeneratedSuggestions();
 
-      document.querySelectorAll('#giftsTabs .nav-link').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
+      document
+        .querySelectorAll("#giftsTabs .nav-link")
+        .forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
 
-      renderFilters(document.getElementById('tabFilters'));
+      renderFilters(document.getElementById("tabFilters"));
       renderList();
       renderForm();
       attachEventListeners(ctx);
@@ -1349,13 +1545,13 @@ function attachEventListeners(ctx) {
   });
 
   // Filter-Controls
-  addListener(document.getElementById('giftsSearch'), 'input', (e) => {
+  addListener(document.getElementById("giftsSearch"), "input", (e) => {
     filters.search = e.target.value;
     renderList();
     attachListListeners();
   });
 
-  addListener(document.getElementById('filterPerson'), 'change', (e) => {
+  addListener(document.getElementById("filterPerson"), "change", (e) => {
     if (generatedForPersonId && generatedForPersonId !== e.target.value) {
       clearGeneratedSuggestions();
     }
@@ -1364,90 +1560,106 @@ function attachEventListeners(ctx) {
     attachListListeners();
   });
 
-  addListener(document.getElementById('filterOccasion'), 'change', (e) => {
+  addListener(document.getElementById("filterOccasion"), "change", (e) => {
     filters.occasion = e.target.value;
     renderList();
     attachListListeners();
   });
 
-  addListener(document.getElementById('filterStatus'), 'change', (e) => {
+  addListener(document.getElementById("filterStatus"), "change", (e) => {
     filters.status = e.target.value;
     renderList();
     attachListListeners();
   });
 
   // "Neu"-Button
-  addListener(document.getElementById('addItemBtn'), 'click', (e) => {
+  addListener(document.getElementById("addItemBtn"), "click", (e) => {
     e.preventDefault();
-    formMode    = 'create';
+    formMode = "create";
     editingItem = null;
     renderForm();
     window.scrollTo(0, 0);
     attachEventListeners(ctx);
   });
 
-  addListener(document.getElementById('sharePersonIdeasBtn'), 'click', async (e) => {
-    e.preventDefault();
-    await handleShareIdeasByPerson();
-  });
+  addListener(
+    document.getElementById("sharePersonIdeasBtn"),
+    "click",
+    async (e) => {
+      e.preventDefault();
+      await handleShareIdeasByPerson();
+    },
+  );
 
-  addListener(document.getElementById('generateIdeasBtn'), 'click', async (e) => {
-    e.preventDefault();
-    await handleGenerateIdeasFromSuggestions();
-  });
+  addListener(
+    document.getElementById("generateIdeasBtn"),
+    "click",
+    async (e) => {
+      e.preventDefault();
+      await handleGenerateIdeasFromSuggestions();
+    },
+  );
 
   // Formular
-  const formEl = document.getElementById('entityForm');
-  addListener(formEl, 'submit', (e) => handleFormSubmit(e, ctx));
+  const formEl = document.getElementById("entityForm");
+  addListener(formEl, "submit", (e) => handleFormSubmit(e, ctx));
 
-  const convertForm = document.getElementById('convertForm');
-  addListener(convertForm, 'submit', (e) => handleConvertSubmit(e, ctx));
+  const convertForm = document.getElementById("convertForm");
+  addListener(convertForm, "submit", (e) => handleConvertSubmit(e, ctx));
 
-  addListener(document.getElementById('cancelBtn'), 'click', () => {
-    formMode      = 'none';
-    editingItem   = null;
+  addListener(document.getElementById("cancelBtn"), "click", () => {
+    formMode = "none";
+    editingItem = null;
     convertIdeaId = null;
     renderForm();
     attachEventListeners(ctx);
   });
 
-  addListener(document.getElementById('deleteBtn'), 'click', () => handleDelete(ctx));
+  addListener(document.getElementById("deleteBtn"), "click", () =>
+    handleDelete(ctx),
+  );
   attachMediaFieldListeners();
 
   attachListListeners();
 }
 
 function attachMediaFieldListeners() {
-  const openImageBtn = document.getElementById('mediaOpenImageBtn');
-  const copyLinkBtn = document.getElementById('mediaCopyLinkBtn');
-  const imageInput = document.getElementById('formImageUrl');
-  const linkInput = document.getElementById('formLinkUrl');
+  const openImageBtn = document.getElementById("mediaOpenImageBtn");
+  const copyLinkBtn = document.getElementById("mediaCopyLinkBtn");
+  const imageInput = document.getElementById("formImageUrl");
+  const linkInput = document.getElementById("formLinkUrl");
 
-  addListener(openImageBtn, 'click', () => {
-    const url = imageInput?.value?.trim() || '';
+  addListener(openImageBtn, "click", () => {
+    const url = imageInput?.value?.trim() || "";
     if (!isHttpUrl(url)) {
-      showUiPopup('Bitte eine gültige Bild-URL (http/https) eingeben.', 'warning');
+      showUiPopup(
+        "Bitte eine gültige Bild-URL (http/https) eingeben.",
+        "warning",
+      );
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
-    showUiPopup('Bild wurde in einem neuen Tab geöffnet.', 'success');
+    window.open(url, "_blank", "noopener,noreferrer");
+    showUiPopup("Bild wurde in einem neuen Tab geöffnet.", "success");
   });
 
-  addListener(copyLinkBtn, 'click', async () => {
-    const url = linkInput?.value?.trim() || '';
+  addListener(copyLinkBtn, "click", async () => {
+    const url = linkInput?.value?.trim() || "";
     if (!isHttpUrl(url)) {
-      showUiPopup('Bitte eine gültige Link-URL (http/https) eingeben.', 'warning');
+      showUiPopup(
+        "Bitte eine gültige Link-URL (http/https) eingeben.",
+        "warning",
+      );
       return;
     }
     try {
       await navigator.clipboard?.writeText(url);
       copyLinkBtn.innerHTML = '<i class="bi bi-check2"></i> Kopiert';
-      showUiPopup('Link wurde in die Zwischenablage kopiert.', 'success');
+      showUiPopup("Link wurde in die Zwischenablage kopiert.", "success");
       setTimeout(() => {
         copyLinkBtn.innerHTML = '<i class="bi bi-clipboard"></i> Link kopieren';
       }, 1200);
     } catch {
-      showUiPopup('Kopieren fehlgeschlagen.', 'error');
+      showUiPopup("Kopieren fehlgeschlagen.", "error");
     }
   });
 }
@@ -1456,101 +1668,149 @@ async function handleFormSubmit(e, ctx) {
   e.preventDefault();
 
   const user = await waitForUserOnce();
-  if (!user) { window.location.href = './login.html'; return; }
+  if (!user) {
+    window.location.href = "./login.html";
+    return;
+  }
 
-  const formEl = document.getElementById('entityForm');
-  const btn    = formEl.querySelector('button[type="submit"]');
+  const formEl = document.getElementById("entityForm");
+  const btn = formEl.querySelector('button[type="submit"]');
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
 
   try {
-    const personId   = document.getElementById('formPerson').value;
-    const personName = persons.find(p => p.id === personId)?.name || '';
+    const personId = document.getElementById("formPerson").value;
+    const personName = persons.find((p) => p.id === personId)?.name || "";
 
-    let occasionId   = document.getElementById('formOccasion').value || null;
-    let occasionName = '';
+    let occasionId = document.getElementById("formOccasion").value || null;
+    let occasionName = "";
 
-    if (occasionId === '__custom__') {
-      occasionName = document.getElementById('formCustomOccasion').value.trim();
-      occasionId   = null;
+    if (occasionId === "__custom__") {
+      occasionName = document.getElementById("formCustomOccasion").value.trim();
+      occasionId = null;
     } else if (occasionId) {
       occasionName = resolveOccasionName(occasionId);
     }
 
-    const giftName = document.getElementById('formGiftName')?.value.trim() || '';
-    const note     = document.getElementById('formNote')?.value.trim()     || '';
-    const imageUrl = normalizeHttpUrl(document.getElementById('formImageUrl')?.value || '');
-    const linkUrl  = normalizeHttpUrl(document.getElementById('formLinkUrl')?.value || '');
-    const status   = document.getElementById('formStatus').value;
+    const giftName =
+      document.getElementById("formGiftName")?.value.trim() || "";
+    const note = document.getElementById("formNote")?.value.trim() || "";
+    const imageUrl = normalizeHttpUrl(
+      document.getElementById("formImageUrl")?.value || "",
+    );
+    const linkUrl = normalizeHttpUrl(
+      document.getElementById("formLinkUrl")?.value || "",
+    );
+    const status = document.getElementById("formStatus").value;
 
-    if (imageUrl && !isHttpUrl(imageUrl)) throw new Error('Bild-URL muss mit http:// oder https:// beginnen.');
-    if (linkUrl && !isHttpUrl(linkUrl)) throw new Error('Link-URL muss mit http:// oder https:// beginnen.');
+    if (imageUrl && !isHttpUrl(imageUrl))
+      throw new Error("Bild-URL muss mit http:// oder https:// beginnen.");
+    if (linkUrl && !isHttpUrl(linkUrl))
+      throw new Error("Link-URL muss mit http:// oder https:// beginnen.");
 
-    if (currentTab === 'gifts') {
-      const date = document.getElementById('formDate').value;
+    if (currentTab === "gifts") {
+      const date = document.getElementById("formDate").value;
       const noteWithMedia = buildGiftNoteWithMedia(note, imageUrl, linkUrl);
 
       if (!personId || !date || !giftName) {
-        alert('Person, Name und Datum sind erforderlich');
+        alert("Person, Name und Datum sind erforderlich");
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
         return;
       }
 
-      if (formMode === 'edit' && editingItem) {
-        await updateGift(editingItem, { personId, personName, occasionId, occasionName, giftName, date, note: noteWithMedia, status });
+      if (formMode === "edit" && editingItem) {
+        await updateGift(editingItem, {
+          personId,
+          personName,
+          occasionId,
+          occasionName,
+          giftName,
+          date,
+          note: noteWithMedia,
+          status,
+        });
       } else {
-        await createGift({ personId, personName, occasionId, occasionName, giftName, date, note: noteWithMedia, status });
+        await createGift({
+          personId,
+          personName,
+          occasionId,
+          occasionName,
+          giftName,
+          date,
+          note: noteWithMedia,
+          status,
+        });
       }
     } else {
-      const ideaDate = document.getElementById('formIdeaDate')?.value || '';
+      const ideaDate = document.getElementById("formIdeaDate")?.value || "";
 
       if (!personId) {
-        alert('Person ist erforderlich');
+        alert("Person ist erforderlich");
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
         return;
       }
 
       if (!giftName && !note && !imageUrl && !linkUrl) {
-        alert('Bitte gib mindestens einen Geschenknamen, Infos oder eine Medien-URL ein');
+        alert(
+          "Bitte gib mindestens einen Geschenknamen, Infos oder eine Medien-URL ein",
+        );
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
         return;
       }
 
-      let type = 'text';
-      let content = note || giftName || '';
+      let type = "text";
+      let content = note || giftName || "";
       if (imageUrl) {
-        type = 'image';
+        type = "image";
         content = imageUrl;
       } else if (linkUrl) {
-        type = 'link';
+        type = "link";
         content = linkUrl;
       }
 
-      if (formMode === 'edit' && editingItem) {
+      if (formMode === "edit" && editingItem) {
         await updateGiftIdea(editingItem, {
-          personId, personName, occasionId, occasionName, giftName, type, content, note, date: ideaDate, status
+          personId,
+          personName,
+          occasionId,
+          occasionName,
+          giftName,
+          type,
+          content,
+          note,
+          date: ideaDate,
+          status,
         });
       } else {
         await createGiftIdea({
-          personId, personName, occasionId, occasionName, giftName, type, content, note, date: ideaDate, status
+          personId,
+          personName,
+          occasionId,
+          occasionName,
+          giftName,
+          type,
+          content,
+          note,
+          date: ideaDate,
+          status,
         });
       }
     }
 
     await loadData();
-    formMode    = 'none';
+    formMode = "none";
     editingItem = null;
 
-    renderFilters(document.getElementById('tabFilters'));
+    renderFilters(document.getElementById("tabFilters"));
     renderList();
     renderForm();
     attachEventListeners(ctx);
   } catch (err) {
     console.error(err);
-    alert('Fehler: ' + err.message);
+    alert("Fehler: " + err.message);
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
   }
@@ -1560,151 +1820,176 @@ async function handleConvertSubmit(e, ctx) {
   e.preventDefault();
 
   const user = await waitForUserOnce();
-  if (!user) { window.location.href = './login.html'; return; }
+  if (!user) {
+    window.location.href = "./login.html";
+    return;
+  }
 
-  const convertForm = document.getElementById('convertForm');
-  const btn         = convertForm.querySelector('button[type="submit"]');
-  const date        = document.getElementById('convertDate').value;
-  const note        = document.getElementById('convertNote').value;
-  const giftName    = document.getElementById('convertGiftName').value.trim();
+  const convertForm = document.getElementById("convertForm");
+  const btn = convertForm.querySelector('button[type="submit"]');
+  const date = document.getElementById("convertDate").value;
+  const note = document.getElementById("convertNote").value;
+  const giftName = document.getElementById("convertGiftName").value.trim();
 
   if (!date || !giftName) {
-    alert('Bitte fülle alle Pflichtfelder aus!');
+    alert("Bitte fülle alle Pflichtfelder aus!");
     return;
   }
 
   try {
-    btn.disabled  = true;
+    btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird konvertiert...';
 
     await convertIdeaToGift(convertIdeaId, { date, note, giftName });
 
     await loadData();
-    formMode      = 'none';
+    formMode = "none";
     convertIdeaId = null;
-    currentTab    = 'gifts';
+    currentTab = "gifts";
 
-    document.querySelectorAll('#giftsTabs .nav-link').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.tab === 'gifts');
+    document.querySelectorAll("#giftsTabs .nav-link").forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.tab === "gifts");
     });
 
-    renderFilters(document.getElementById('tabFilters'));
+    renderFilters(document.getElementById("tabFilters"));
     renderList();
     renderForm();
     attachEventListeners(ctx);
   } catch (err) {
     console.error(err);
-    alert('Fehler beim Konvertieren: ' + err.message);
-    btn.disabled  = false;
+    alert("Fehler beim Konvertieren: " + err.message);
+    btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle"></i> Konvertieren';
   }
 }
 
 async function handleDelete(ctx) {
-  const source = currentTab === 'gifts' ? gifts : ideas;
-  const item = source.find(x => x.id === editingItem);
-  const itemLabel = item?.giftName || item?.occasionName || item?.personName || '';
+  const source = currentTab === "gifts" ? gifts : ideas;
+  const item = source.find((x) => x.id === editingItem);
+  const itemLabel =
+    item?.giftName || item?.occasionName || item?.personName || "";
   const shouldDelete = await showDeleteConfirmModal(itemLabel);
   if (!shouldDelete) return;
 
   const user = await waitForUserOnce();
-  if (!user) { window.location.href = './login.html'; return; }
+  if (!user) {
+    window.location.href = "./login.html";
+    return;
+  }
 
   try {
-    if (currentTab === 'gifts') await deleteGift(editingItem);
-    else                        await deleteGiftIdea(editingItem);
+    if (currentTab === "gifts") await deleteGift(editingItem);
+    else await deleteGiftIdea(editingItem);
 
     await loadData();
-    formMode    = 'none';
+    formMode = "none";
     editingItem = null;
 
-    renderFilters(document.getElementById('tabFilters'));
+    renderFilters(document.getElementById("tabFilters"));
     renderList();
     renderForm();
     attachEventListeners(ctx);
   } catch (err) {
     console.error(err);
-    const label = currentTab === 'gifts' ? 'Das Geschenk' : 'Die Geschenkidee';
+    const label = currentTab === "gifts" ? "Das Geschenk" : "Die Geschenkidee";
     alert(getDeleteFailedMessage(err, label));
   }
 }
 
 function attachListListeners() {
-  addListener(document.getElementById('selectAllGeneratedBtn'), 'click', (e) => {
-    e.preventDefault();
-    generatedSuggestions.forEach((s) => selectedGeneratedSuggestionIds.add(s._id));
-    renderList();
-    attachListListeners();
-  });
+  addListener(
+    document.getElementById("selectAllGeneratedBtn"),
+    "click",
+    (e) => {
+      e.preventDefault();
+      generatedSuggestions.forEach((s) =>
+        selectedGeneratedSuggestionIds.add(s._id),
+      );
+      renderList();
+      attachListListeners();
+    },
+  );
 
-  addListener(document.getElementById('clearGeneratedBtn'), 'click', (e) => {
+  addListener(document.getElementById("clearGeneratedBtn"), "click", (e) => {
     e.preventDefault();
     clearGeneratedSuggestions();
     renderList();
     attachListListeners();
   });
 
-  addListener(document.getElementById('adoptGeneratedBtn'), 'click', async (e) => {
-    e.preventDefault();
-    await handleAdoptGeneratedSuggestions();
-  });
-
-  document.querySelectorAll('.generated-suggestion-check').forEach((checkbox) => {
-    addListener(checkbox, 'change', (e) => {
-      const id = e.currentTarget.dataset.suggestionId;
-      if (!id) return;
-      if (e.currentTarget.checked) selectedGeneratedSuggestionIds.add(id);
-      else selectedGeneratedSuggestionIds.delete(id);
-      const adoptBtn = document.getElementById('adoptGeneratedBtn');
-      if (adoptBtn) adoptBtn.disabled = selectedGeneratedSuggestionIds.size === 0;
-    });
-  });
-
-  document.querySelectorAll('#listContainer .edit-btn').forEach(btn => {
-    addListener(btn, 'click', (e) => {
+  addListener(
+    document.getElementById("adoptGeneratedBtn"),
+    "click",
+    async (e) => {
       e.preventDefault();
-      editingItem = btn.closest('[data-id]').dataset.id;
-      formMode    = 'edit';
+      await handleAdoptGeneratedSuggestions();
+    },
+  );
+
+  document
+    .querySelectorAll(".generated-suggestion-check")
+    .forEach((checkbox) => {
+      addListener(checkbox, "change", (e) => {
+        const id = e.currentTarget.dataset.suggestionId;
+        if (!id) return;
+        if (e.currentTarget.checked) selectedGeneratedSuggestionIds.add(id);
+        else selectedGeneratedSuggestionIds.delete(id);
+        const adoptBtn = document.getElementById("adoptGeneratedBtn");
+        if (adoptBtn)
+          adoptBtn.disabled = selectedGeneratedSuggestionIds.size === 0;
+      });
+    });
+
+  document.querySelectorAll("#listContainer .edit-btn").forEach((btn) => {
+    addListener(btn, "click", (e) => {
+      e.preventDefault();
+      editingItem = btn.closest("[data-id]").dataset.id;
+      formMode = "edit";
       renderForm();
       window.scrollTo(0, 0);
       attachEventListeners();
     });
   });
 
-  document.querySelectorAll('#listContainer .delete-btn').forEach(btn => {
-    addListener(btn, 'click', async (e) => {
+  document.querySelectorAll("#listContainer .delete-btn").forEach((btn) => {
+    addListener(btn, "click", async (e) => {
       e.preventDefault();
-      const id = btn.closest('[data-id]').dataset.id;
-      const source = currentTab === 'gifts' ? gifts : ideas;
-      const item = source.find(x => x.id === id);
-      const itemLabel = item?.giftName || item?.occasionName || item?.personName || '';
+      const id = btn.closest("[data-id]").dataset.id;
+      const source = currentTab === "gifts" ? gifts : ideas;
+      const item = source.find((x) => x.id === id);
+      const itemLabel =
+        item?.giftName || item?.occasionName || item?.personName || "";
       const shouldDelete = await showDeleteConfirmModal(itemLabel);
       if (!shouldDelete) return;
 
       const user = await waitForUserOnce();
-      if (!user) { window.location.href = './login.html'; return; }
+      if (!user) {
+        window.location.href = "./login.html";
+        return;
+      }
 
       try {
-        if (currentTab === 'gifts') await deleteGift(id);
-        else                        await deleteGiftIdea(id);
+        if (currentTab === "gifts") await deleteGift(id);
+        else await deleteGiftIdea(id);
 
         await loadData();
         renderList();
         attachListListeners();
       } catch (err) {
         console.error(err);
-        const label = currentTab === 'gifts' ? 'Das Geschenk' : 'Die Geschenkidee';
+        const label =
+          currentTab === "gifts" ? "Das Geschenk" : "Die Geschenkidee";
         alert(getDeleteFailedMessage(err, label));
       }
     });
   });
 
-  if (currentTab === 'ideas') {
-    document.querySelectorAll('#listContainer .convert-btn').forEach(btn => {
-      addListener(btn, 'click', (e) => {
+  if (currentTab === "ideas") {
+    document.querySelectorAll("#listContainer .convert-btn").forEach((btn) => {
+      addListener(btn, "click", (e) => {
         e.preventDefault();
-        convertIdeaId = btn.closest('[data-id]').dataset.id;
-        formMode      = 'convert';
+        convertIdeaId = btn.closest("[data-id]").dataset.id;
+        formMode = "convert";
         renderForm();
         window.scrollTo(0, 0);
         attachEventListeners();
@@ -1716,10 +2001,18 @@ function attachListListeners() {
 // ---------- Public API ----------
 
 export async function render(container, ctx) {
-  ctx.setPageHeader('Geschenke & Ideen', 'Verwalte hier deine Geschenke, Geschenkideen und vergangene Geschenke.');
+  ctx.setPageHeader(
+    "Geschenke & Ideen",
+    "Verwalte hier deine Geschenke, Geschenkideen und vergangene Geschenke.",
+  );
 
   if (ctx.params) {
-    if (ctx.params.tab === 'gifts' || ctx.params.tab === 'ideas' || ctx.params.tab === 'past') currentTab = ctx.params.tab;
+    if (
+      ctx.params.tab === "gifts" ||
+      ctx.params.tab === "ideas" ||
+      ctx.params.tab === "past"
+    )
+      currentTab = ctx.params.tab;
     if (ctx.params.status) filters.status = ctx.params.status;
     if (ctx.params.personId) filters.person = ctx.params.personId;
     if (ctx.params.id) focusItemId = ctx.params.id;
@@ -1739,17 +2032,17 @@ export async function render(container, ctx) {
     <div class="gifts-manager">
       <ul class="nav nav-tabs mb-4" id="giftsTabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <a class="nav-link ${currentTab === 'gifts' ? 'active' : ''}" href="#" data-tab="gifts" role="tab">
+          <a class="nav-link ${currentTab === "gifts" ? "active" : ""}" href="#" data-tab="gifts" role="tab">
             <i class="bi bi-gift"></i> Geschenke
           </a>
         </li>
         <li class="nav-item" role="presentation">
-          <a class="nav-link ${currentTab === 'ideas' ? 'active' : ''}" href="#" data-tab="ideas" role="tab">
+          <a class="nav-link ${currentTab === "ideas" ? "active" : ""}" href="#" data-tab="ideas" role="tab">
             <i class="bi bi-lightbulb"></i> Geschenkideen
           </a>
         </li>
         <li class="nav-item" role="presentation">
-          <a class="nav-link ${currentTab === 'past' ? 'active' : ''}" href="#" data-tab="past" role="tab">
+          <a class="nav-link ${currentTab === "past" ? "active" : ""}" href="#" data-tab="past" role="tab">
             <i class="bi bi-clock-history"></i> Vergangen
           </a>
         </li>
@@ -1767,7 +2060,7 @@ export async function render(container, ctx) {
   `;
 
   await loadData();
-  renderFilters(document.getElementById('tabFilters'));
+  renderFilters(document.getElementById("tabFilters"));
   renderList();
   renderForm();
   attachEventListeners(ctx);
@@ -1778,14 +2071,14 @@ export function destroy() {
   if (activeSharePickerCleanup) activeSharePickerCleanup(null);
   if (activeShareResultCleanup) activeShareResultCleanup();
   removeAllListeners();
-  gifts = []; ideas = []; pastGifts = []; persons = []; occasions = [];
-  editingItem   = null;
-  formMode      = 'none';
+  gifts = [];
+  ideas = [];
+  pastGifts = [];
+  persons = [];
+  occasions = [];
+  editingItem = null;
+  formMode = "none";
   convertIdeaId = null;
   focusItemId = null;
   clearGeneratedSuggestions();
 }
-
-
-
-

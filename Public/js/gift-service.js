@@ -25,7 +25,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-  limit
+  limit,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -94,7 +94,9 @@ function effectiveKind(docData) {
 }
 
 function sortByDateDesc(items) {
-  items.sort((a, b) => normalizeString(b.date).localeCompare(normalizeString(a.date)));
+  items.sort((a, b) =>
+    normalizeString(b.date).localeCompare(normalizeString(a.date)),
+  );
   return items;
 }
 
@@ -116,12 +118,13 @@ export async function createGift({
   note = "",
   status = "offen",
   sourceIdeaId = null,
-  kind = "planned" // default
+  kind = "planned", // default
 }) {
   const pid = requireNonEmpty("personId", personId);
   const pname = requireNonEmpty("personName", personName);
 
-  if (!isValidDateYYYYMMDD(date)) throw new Error("Ungültiges Datum (YYYY-MM-DD).");
+  if (!isValidDateYYYYMMDD(date))
+    throw new Error("Ungültiges Datum (YYYY-MM-DD).");
   if (!isValidStatus(status)) throw new Error("Ungültiger Status.");
 
   const k = normalizeKind(kind);
@@ -139,7 +142,7 @@ export async function createGift({
     kind: k,
     sourceIdeaId: sourceIdeaId ? String(sourceIdeaId) : null,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return docRef.id;
@@ -186,14 +189,20 @@ export async function updateGift(id, patch = {}) {
 
   const out = { updatedAt: serverTimestamp() };
 
-  if (patch.personId !== undefined) out.personId = requireNonEmpty("personId", patch.personId);
-  if (patch.personName !== undefined) out.personName = requireNonEmpty("personName", patch.personName);
-  if (patch.occasionId !== undefined) out.occasionId = normalizeString(patch.occasionId);
-  if (patch.occasionName !== undefined) out.occasionName = normalizeString(patch.occasionName);
-  if (patch.giftName !== undefined) out.giftName = normalizeString(patch.giftName);
+  if (patch.personId !== undefined)
+    out.personId = requireNonEmpty("personId", patch.personId);
+  if (patch.personName !== undefined)
+    out.personName = requireNonEmpty("personName", patch.personName);
+  if (patch.occasionId !== undefined)
+    out.occasionId = normalizeString(patch.occasionId);
+  if (patch.occasionName !== undefined)
+    out.occasionName = normalizeString(patch.occasionName);
+  if (patch.giftName !== undefined)
+    out.giftName = normalizeString(patch.giftName);
 
   if (patch.date !== undefined) {
-    if (!isValidDateYYYYMMDD(patch.date)) throw new Error("Ungültiges Datum (YYYY-MM-DD).");
+    if (!isValidDateYYYYMMDD(patch.date))
+      throw new Error("Ungültiges Datum (YYYY-MM-DD).");
     out.date = normalizeString(patch.date);
   }
   if (patch.note !== undefined) out.note = normalizeString(patch.note);
@@ -203,7 +212,8 @@ export async function updateGift(id, patch = {}) {
     out.status = patch.status;
   }
 
-  if (patch.sourceIdeaId !== undefined) out.sourceIdeaId = patch.sourceIdeaId ? String(patch.sourceIdeaId) : null;
+  if (patch.sourceIdeaId !== undefined)
+    out.sourceIdeaId = patch.sourceIdeaId ? String(patch.sourceIdeaId) : null;
 
   if (patch.kind !== undefined) out.kind = normalizeKind(patch.kind);
 
@@ -248,12 +258,13 @@ export async function createPastGift({
   occasionName = "",
   date,
   note = "",
-  status = "ueberreicht"
+  status = "ueberreicht",
 }) {
   const pid = requireNonEmpty("personId", personId);
   const pname = requireNonEmpty("personName", personName);
 
-  if (!isValidDateYYYYMMDD(date)) throw new Error("Ungültiges Datum (YYYY-MM-DD).");
+  if (!isValidDateYYYYMMDD(date))
+    throw new Error("Ungültiges Datum (YYYY-MM-DD).");
   if (!isValidStatus(status)) throw new Error("Ungültiger Status.");
 
   const ref = await giftsColRef();
@@ -269,7 +280,7 @@ export async function createPastGift({
     kind: "past",
     sourceIdeaId: null,
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return docRef.id;
@@ -311,15 +322,20 @@ export async function updatePastGift(id, patch = {}) {
   const current = await getGift(id);
   if (!current) throw new Error("Geschenk nicht gefunden.");
   if (effectiveKind(current) !== "past") {
-    throw new Error("updatePastGift: Dieses Geschenk ist kein vergangenes Geschenk (kind!='past').");
+    throw new Error(
+      "updatePastGift: Dieses Geschenk ist kein vergangenes Geschenk (kind!='past').",
+    );
   }
 
   const allowed = {};
-  if (patch.occasionId !== undefined) allowed.occasionId = normalizeString(patch.occasionId);
-  if (patch.occasionName !== undefined) allowed.occasionName = normalizeString(patch.occasionName);
+  if (patch.occasionId !== undefined)
+    allowed.occasionId = normalizeString(patch.occasionId);
+  if (patch.occasionName !== undefined)
+    allowed.occasionName = normalizeString(patch.occasionName);
 
   if (patch.date !== undefined) {
-    if (!isValidDateYYYYMMDD(patch.date)) throw new Error("Ungültiges Datum (YYYY-MM-DD).");
+    if (!isValidDateYYYYMMDD(patch.date))
+      throw new Error("Ungültiges Datum (YYYY-MM-DD).");
     allowed.date = normalizeString(patch.date);
   }
 
@@ -340,7 +356,9 @@ export async function deletePastGift(id) {
   const current = await getGift(id);
   if (!current) return;
   if (effectiveKind(current) !== "past") {
-    throw new Error("deletePastGift: Dieses Geschenk ist kein vergangenes Geschenk (kind!='past').");
+    throw new Error(
+      "deletePastGift: Dieses Geschenk ist kein vergangenes Geschenk (kind!='past').",
+    );
   }
   await deleteGift(id);
 }

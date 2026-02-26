@@ -8,7 +8,9 @@
  */
 
 function normalize(s) {
-  return String(s || "").trim().toLowerCase();
+  return String(s || "")
+    .trim()
+    .toLowerCase();
 }
 
 function tokenize(text) {
@@ -17,8 +19,8 @@ function tokenize(text) {
   return t
     .replace(/[^a-zäöüß0-9\s-]/gi, " ")
     .split(/\s+/)
-    .map(x => x.trim())
-    .filter(x => x.length >= 3);
+    .map((x) => x.trim())
+    .filter((x) => x.length >= 3);
 }
 
 function topKeywordsFromPast(pastGifts, max = 6) {
@@ -26,7 +28,7 @@ function topKeywordsFromPast(pastGifts, max = 6) {
 
   for (const g of pastGifts || []) {
     const note = g.note || "";
-    tokenize(note).forEach(w => {
+    tokenize(note).forEach((w) => {
       freq.set(w, (freq.get(w) || 0) + 1);
     });
   }
@@ -37,7 +39,7 @@ function topKeywordsFromPast(pastGifts, max = 6) {
 
 function existingIdeaContains(existingIdeas, keyword) {
   const k = normalize(keyword);
-  return (existingIdeas || []).some(i => normalize(i.content).includes(k));
+  return (existingIdeas || []).some((i) => normalize(i.content).includes(k));
 }
 
 /**
@@ -47,27 +49,38 @@ function existingIdeaContains(existingIdeas, keyword) {
  *  items=["Essen gehen","Kino","Kurztrip","Massage"]
  * -> liefert 4 einzelne Suggestions
  */
-function makeListSuggestions({ category, items, personId, personName, reason }) {
+function makeListSuggestions({
+  category,
+  items,
+  personId,
+  personName,
+  reason,
+}) {
   return (items || [])
-    .map(x => String(x || "").trim())
+    .map((x) => String(x || "").trim())
     .filter(Boolean)
-    .map(item => ({
-      title: item,        
-      content: item,      // wird übernommen als GiftIdea.content
+    .map((item) => ({
+      title: item,
+      content: item, // wird übernommen als GiftIdea.content
       type: "text",
       status: "offen",
       occasionId: "",
       occasionName: "",
       personId,
       personName,
-      reason: reason || `Fallback: Kategorie "${category}".`
+      reason: reason || `Fallback: Kategorie "${category}".`,
     }));
 }
 
 /**
  * generateIdeasForPerson({ personId, personName, pastGifts, existingIdeas })
  */
-export function generateIdeasForPerson({ personId, personName, pastGifts, existingIdeas }) {
+export function generateIdeasForPerson({
+  personId,
+  personName,
+  pastGifts,
+  existingIdeas,
+}) {
   const suggestions = [];
 
   // 1) Keywords aus vergangenen Geschenken (aus Notiz-Feld)
@@ -85,7 +98,7 @@ export function generateIdeasForPerson({ personId, personName, pastGifts, existi
       occasionName: "",
       personId,
       personName,
-      reason: `Automatisch generiert: "${word}" kam in vergangenen Geschenken ${count}× vor.`
+      reason: `Automatisch generiert: "${word}" kam in vergangenen Geschenken ${count}× vor.`,
     });
   }
 
@@ -95,18 +108,21 @@ export function generateIdeasForPerson({ personId, personName, pastGifts, existi
       {
         category: "Gutschein",
         items: ["Lieblingsladen", "Amazon", "Drogerie", "Restaurant"],
-        reason: "Fallback: Zu wenig vergangene Daten – Gutschein-Ideen als Start."
+        reason:
+          "Fallback: Zu wenig vergangene Daten – Gutschein-Ideen als Start.",
       },
       {
         category: "Erlebnis",
         items: ["Essen gehen", "Kino", "Kurztrip", "Massage"],
-        reason: "Fallback: Zu wenig vergangene Daten – Erlebnis-Ideen als Start."
+        reason:
+          "Fallback: Zu wenig vergangene Daten – Erlebnis-Ideen als Start.",
       },
       {
         category: "Personalisiert",
         items: ["Fotobuch", "Gravur", "Custom Tasse", "Erinnerungsbox"],
-        reason: "Fallback: Zu wenig vergangene Daten – personalisierte Ideen als Start."
-      }
+        reason:
+          "Fallback: Zu wenig vergangene Daten – personalisierte Ideen als Start.",
+      },
     ];
 
     for (const block of fallbackBlocks) {
@@ -115,7 +131,7 @@ export function generateIdeasForPerson({ personId, personName, pastGifts, existi
         items: block.items,
         personId,
         personName,
-        reason: block.reason
+        reason: block.reason,
       })) {
         if (existingIdeaContains(existingIdeas, sug.content)) continue;
         suggestions.push(sug);

@@ -21,7 +21,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where
+  where,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -73,14 +73,14 @@ export async function ensureDefaultOccasions() {
   // Default-Anlässe anlegen
   const defaults = [
     { name: "Geburtstag", type: "fixed", isActive: true },
-    { name: "Weihnachten", type: "fixed", isActive: true }
+    { name: "Weihnachten", type: "fixed", isActive: true },
   ];
 
   for (const d of defaults) {
     await addDoc(ref, {
       ...d,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
   }
 }
@@ -88,7 +88,14 @@ export async function ensureDefaultOccasions() {
 /**
  * Anlass anlegen (frei / custom)
  */
-export async function createOccasion({ name, date, person, type, info, isActive }) {
+export async function createOccasion({
+  name,
+  date,
+  person,
+  type,
+  info,
+  isActive,
+}) {
   if (!name?.trim()) throw new Error("Name ist Pflicht.");
   if (!date) throw new Error("Datum ist Pflicht.");
 
@@ -96,19 +103,18 @@ export async function createOccasion({ name, date, person, type, info, isActive 
 
   const payload = {
     name: name.trim(),
-    date: String(date),                 // "YYYY-MM-DD" als String speichern (sauber fürs UI)
+    date: String(date), // "YYYY-MM-DD" als String speichern (sauber fürs UI)
     person: person ? String(person).trim() : "",
     type: type === "fixed" ? "fixed" : "custom",
     info: info ? String(info).trim() : "",
-    isActive: isActive !== false,       // default true
+    isActive: isActive !== false, // default true
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   };
 
   const docRef = await addDoc(ref, payload);
   return docRef.id;
 }
-
 
 /**
  * Anlässe laden (sortiert)
@@ -118,37 +124,43 @@ export async function listOccasions() {
   const snap = await getDocs(ref);
   const items = snap.docs.map((d) => ({
     id: d.id,
-    ...d.data()
+    ...d.data(),
   }));
-  items.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
+  items.sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""), "de"),
+  );
   return items;
 }
 
 /**
  * Anlass bearbeiten
  */
-export async function updateOccasion(id, { name, date, person, type, info, isActive }) {
+export async function updateOccasion(
+  id,
+  { name, date, person, type, info, isActive },
+) {
   if (!id) throw new Error("ID fehlt.");
-  if (name !== undefined && !String(name).trim()) throw new Error("Name ist Pflicht.");
-  if (date !== undefined && !String(date).trim()) throw new Error("Datum ist Pflicht.");
+  if (name !== undefined && !String(name).trim())
+    throw new Error("Name ist Pflicht.");
+  if (date !== undefined && !String(date).trim())
+    throw new Error("Datum ist Pflicht.");
 
   const uid = await getUidOrThrow();
   const ref = doc(db, "users", uid, "occasions", id);
 
   const patch = {
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   };
 
   if (name !== undefined) patch.name = String(name).trim();
   if (date !== undefined) patch.date = String(date); // "YYYY-MM-DD"
   if (person !== undefined) patch.person = String(person).trim();
-  if (type !== undefined) patch.type = (type === "fixed" ? "fixed" : "custom");
+  if (type !== undefined) patch.type = type === "fixed" ? "fixed" : "custom";
   if (info !== undefined) patch.info = String(info).trim();
   if (isActive !== undefined) patch.isActive = !!isActive;
 
   await updateDoc(ref, patch);
 }
-
 
 import { hasGiftIdeasByOccasion } from "./gift-idea-service.js";
 import { hasGiftsByOccasion } from "./gift-service.js";
@@ -163,11 +175,13 @@ export async function deleteOccasion(id) {
   // Abhängigkeiten prüfen
   const [hasIdeas, hasGifts] = await Promise.all([
     hasGiftIdeasByOccasion(id),
-    hasGiftsByOccasion(id)
+    hasGiftsByOccasion(id),
   ]);
 
   if (hasIdeas || hasGifts) {
-    throw new Error("Anlass kann nicht gelöscht werden, weil noch Geschenkideen oder Geschenke zugeordnet sind.");
+    throw new Error(
+      "Anlass kann nicht gelöscht werden, weil noch Geschenkideen oder Geschenke zugeordnet sind.",
+    );
   }
 
   const uid = await getUidOrThrow();

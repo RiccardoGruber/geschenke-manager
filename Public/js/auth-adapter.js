@@ -10,8 +10,12 @@
  */
 
 // Firebase-Auth Ergänzungen
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { auth } from './firebase-config.js';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { auth } from "./firebase-config.js";
 
 // Feature-Flag: morgen auf true setzen, um Firebase-Auth strikt zu verwenden
 export const USE_FIREBASE_AUTH = true; // <-- flip to true when switching to Firebase auth
@@ -32,8 +36,8 @@ const KEY_USER = "uiUser";
 
 export function waitForUserOnce() {
   if (USE_FIREBASE_AUTH) {
-    return new Promise(resolve => {
-      const unsubscribe = onAuthStateChanged(auth, user => {
+    return new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
         unsubscribe();
         resolve(user);
       });
@@ -44,7 +48,7 @@ export function waitForUserOnce() {
   if (localStorage.getItem(KEY_LOGIN) === "true") {
     return Promise.resolve({
       uid: "ui",
-      email: localStorage.getItem(KEY_USER)
+      email: localStorage.getItem(KEY_USER),
     });
   }
 
@@ -61,7 +65,7 @@ export function isAuthed() {
 export function getUserLabelUnified() {
   if (USE_FIREBASE_AUTH) {
     return auth.currentUser
-      ? (auth.currentUser.email || auth.currentUser.uid)
+      ? auth.currentUser.email || auth.currentUser.uid
       : "";
   }
   return localStorage.getItem(KEY_USER) ?? "";
@@ -76,7 +80,7 @@ export async function loginUnified(email, password, remember = false) {
 
   // UI fallback
   const ok = await login(email, password, remember);
-  return ok ? { uid: 'ui', email } : null;
+  return ok ? { uid: "ui", email } : null;
 }
 
 export async function logoutUnified() {

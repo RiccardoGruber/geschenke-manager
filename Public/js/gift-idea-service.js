@@ -17,7 +17,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-  limit
+  limit,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -94,7 +94,7 @@ export async function createGiftIdea({
   date = "",
   type = "text",
   content,
-  status = "offen"
+  status = "offen",
 }) {
   const pid = requireNonEmpty("personId", personId);
   const pname = requireNonEmpty("personName", personName);
@@ -116,7 +116,7 @@ export async function createGiftIdea({
     content: validateContentByType(type, content),
     status: normalizeIdeaStatus(status),
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return docRef.id;
@@ -145,7 +145,9 @@ export async function listGiftIdeasByPerson(personId) {
   const snap = await getDocs(q);
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   // simple stable sort: offen zuerst
-  items.sort((a, b) => normalizeString(a.status).localeCompare(normalizeString(b.status), "de"));
+  items.sort((a, b) =>
+    normalizeString(a.status).localeCompare(normalizeString(b.status), "de"),
+  );
   return items;
 }
 
@@ -156,15 +158,19 @@ export async function updateGiftIdea(id, patch = {}) {
 
   const out = { updatedAt: serverTimestamp() };
 
-  if (patch.personId !== undefined) out.personId = requireNonEmpty("personId", patch.personId);
-  if (patch.personName !== undefined) out.personName = requireNonEmpty("personName", patch.personName);
-  if (patch.occasionId !== undefined) out.occasionId = normalizeString(patch.occasionId);
-  if (patch.occasionName !== undefined) out.occasionName = normalizeString(patch.occasionName);
-  if (patch.giftName !== undefined) out.giftName = normalizeString(patch.giftName); 
+  if (patch.personId !== undefined)
+    out.personId = requireNonEmpty("personId", patch.personId);
+  if (patch.personName !== undefined)
+    out.personName = requireNonEmpty("personName", patch.personName);
+  if (patch.occasionId !== undefined)
+    out.occasionId = normalizeString(patch.occasionId);
+  if (patch.occasionName !== undefined)
+    out.occasionName = normalizeString(patch.occasionName);
+  if (patch.giftName !== undefined)
+    out.giftName = normalizeString(patch.giftName);
   if (patch.note !== undefined) out.note = normalizeString(patch.note);
   if (patch.date !== undefined) out.date = normalizeString(patch.date);
-  
-  
+
   if (patch.type !== undefined) {
     if (!isValidType(patch.type)) throw new Error("Ungültiger Typ.");
     out.type = patch.type;

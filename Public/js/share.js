@@ -17,14 +17,18 @@ function clearTable() {
 function render(items) {
   if (!items || items.length === 0) return clearTable();
 
-  tbody.innerHTML = items.map(i => `
+  tbody.innerHTML = items
+    .map(
+      (i) => `
     <tr>
       <td>${i.type || "—"}</td>
       <td>${i.occasionName || "—"}</td>
       <td><span class="badge bg-light text-dark">${i.status || "—"}</span></td>
       <td>${String(i.content || "").slice(0, 240)}</td>
     </tr>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 function getTokenFromUrl() {
@@ -36,7 +40,10 @@ function getTokenFromUrl() {
   try {
     const token = getTokenFromUrl();
     if (!token) {
-      setState("warning", '<i class="bi bi-exclamation-triangle"></i> Link ungültig: Token fehlt.');
+      setState(
+        "warning",
+        '<i class="bi bi-exclamation-triangle"></i> Link ungültig: Token fehlt.',
+      );
       clearTable();
       return;
     }
@@ -47,7 +54,10 @@ function getTokenFromUrl() {
     if (meta.kind === "giftIdeasByPerson") {
       headerTitle.textContent = `Geschenkideen für: ${meta.personName || meta.personId}`;
       render(meta.items || []);
-      setState("success", '<i class="bi bi-check-circle"></i> Inhalte geladen.');
+      setState(
+        "success",
+        '<i class="bi bi-check-circle"></i> Inhalte geladen.',
+      );
       return;
     }
 
@@ -59,9 +69,11 @@ function getTokenFromUrl() {
     }
 
     // unbekannter Linktyp
-    setState("warning", '<i class="bi bi-exclamation-triangle"></i> Link-Typ wird nicht unterstützt.');
+    setState(
+      "warning",
+      '<i class="bi bi-exclamation-triangle"></i> Link-Typ wird nicht unterstützt.',
+    );
     clearTable();
-
   } catch (e) {
     console.error(e);
 

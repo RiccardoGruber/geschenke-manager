@@ -1,5 +1,5 @@
-//damit diese Datei funktioniert 
-//-> Titel umbennen in firebase-config.js 
+//damit diese Datei funktioniert
+//-> Titel umbennen in firebase-config.js
 //-> Platzhalter unten (API, usw.) mit den Daten aus der Firebase Console ersetzen
 //nur lokal anpassen und abspeichern
 
@@ -17,7 +17,7 @@ const firebaseConfig = {
   projectId: "projekt-name",
   storageBucket: "projekt-name.firebasestorage.app",
   messagingSenderId: "123456...",
-  appId: "1:123456..."
+  appId: "1:123456...",
 };
 
 // App initialisieren

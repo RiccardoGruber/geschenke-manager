@@ -15,7 +15,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -58,7 +58,7 @@ export async function createPerson({ name, birthday, info }) {
     birthday: birthday || "",
     info: info || "",
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   return docRef.id;
@@ -73,9 +73,9 @@ export async function listPersons() {
   const q = query(ref, orderBy("name"));
   const snap = await getDocs(q);
 
-  return snap.docs.map(d => ({
+  return snap.docs.map((d) => ({
     id: d.id,
-    ...d.data()
+    ...d.data(),
   }));
 }
 
@@ -93,7 +93,7 @@ export async function updatePerson(id, { name, birthday, info }) {
     name: name.trim(),
     birthday: birthday || "",
     info: info || "",
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 }
 

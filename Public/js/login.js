@@ -35,9 +35,10 @@ form.addEventListener("submit", async (e) => {
     // Success
     window.location.href = "./dashboard.html";
   } catch (err) {
-    console.error('Login failed', err);
-    errorBox.textContent = 'Login fehlgeschlagen: ' + (err?.message || 'Unbekannter Fehler');
-    errorBox.classList.remove('d-none');
+    console.error("Login failed", err);
+    errorBox.textContent =
+      "Login fehlgeschlagen: " + (err?.message || "Unbekannter Fehler");
+    errorBox.classList.remove("d-none");
     btn.disabled = false;
   }
 });

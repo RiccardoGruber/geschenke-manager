@@ -4,42 +4,47 @@
  */
 
 import "./firebase-config.js";
-import { isAuthed, getUserLabelUnified, logoutUnified, waitForUserOnce } from './auth-adapter.js';
-import * as dashboardSection from './sections/dashboard-section.js';
-import * as personsSection   from './sections/persons-section.js';
-import * as occasionsSection from './sections/occasions-section.js';
-import * as giftsSection     from './sections/gifts-section.js';
-import * as settingsSection  from './sections/settings-section.js';
-import { listPersons } from './person-service.js';
-import { listOccasions } from './occasion-service.js';
-import { listGiftIdeas } from './gift-idea-service.js';
+import {
+  isAuthed,
+  getUserLabelUnified,
+  logoutUnified,
+  waitForUserOnce,
+} from "./auth-adapter.js";
+import * as dashboardSection from "./sections/dashboard-section.js";
+import * as personsSection from "./sections/persons-section.js";
+import * as occasionsSection from "./sections/occasions-section.js";
+import * as giftsSection from "./sections/gifts-section.js";
+import * as settingsSection from "./sections/settings-section.js";
+import { listPersons } from "./person-service.js";
+import { listOccasions } from "./occasion-service.js";
+import { listGiftIdeas } from "./gift-idea-service.js";
 
 // Section-Map für sauberes Routing ohne If-Kette
 const SECTIONS = {
   dashboard: dashboardSection,
-  persons:   personsSection,
+  persons: personsSection,
   occasions: occasionsSection,
-  gifts:     giftsSection,
-  settings:  settingsSection,
+  gifts: giftsSection,
+  settings: settingsSection,
 };
 
-const READ_NOTIFICATIONS_STORAGE_KEY = 'readNotificationsV1';
+const READ_NOTIFICATIONS_STORAGE_KEY = "readNotificationsV1";
 
 class DashboardController {
   constructor() {
-    this.currentSection       = null;
+    this.currentSection = null;
     this.currentSectionModule = null;
-    this.currentParams        = {};
+    this.currentParams = {};
 
     // DOM-Referenzen cachen
-    this.profileMenuToggle = document.getElementById('profileMenuToggle');
-    this.dropdownMenu      = document.getElementById('dropdownMenu');
-    this.navButtons        = document.querySelectorAll('.nav-btn');
-    this.contentArea       = document.getElementById('contentArea');
-    this.logoutBtn         = document.getElementById('logoutBtn');
-    this.profileSettings   = document.getElementById('profileSettings');
-    this.notificationBell  = document.getElementById('notificationBell');
-    this.notificationBadge = document.getElementById('notificationBadge');
+    this.profileMenuToggle = document.getElementById("profileMenuToggle");
+    this.dropdownMenu = document.getElementById("dropdownMenu");
+    this.navButtons = document.querySelectorAll(".nav-btn");
+    this.contentArea = document.getElementById("contentArea");
+    this.logoutBtn = document.getElementById("logoutBtn");
+    this.profileSettings = document.getElementById("profileSettings");
+    this.notificationBell = document.getElementById("notificationBell");
+    this.notificationBadge = document.getElementById("notificationBadge");
 
     this.init();
   }
@@ -47,7 +52,7 @@ class DashboardController {
   async init() {
     const user = await waitForUserOnce();
     if (!user) {
-      window.location.href = './login.html';
+      window.location.href = "./login.html";
       return;
     }
 
@@ -55,14 +60,14 @@ class DashboardController {
     await this.updateNotificationBellCount();
     this.registerEventListeners();
 
-    const startSection = localStorage.getItem('defaultSection') || 'dashboard';
+    const startSection = localStorage.getItem("defaultSection") || "dashboard";
     this.switchSection(startSection);
   }
 
   // ---- Header ----
 
   setPageHeader(title, description) {
-    const welcomeBox = document.querySelector('.dashboard-welcome');
+    const welcomeBox = document.querySelector(".dashboard-welcome");
     if (!welcomeBox) return;
     welcomeBox.innerHTML = `
       <h3>${title}</h3>
@@ -71,7 +76,7 @@ class DashboardController {
   }
 
   resetPageHeader() {
-    const welcomeBox = document.querySelector('.dashboard-welcome');
+    const welcomeBox = document.querySelector(".dashboard-welcome");
     if (!welcomeBox) return;
     welcomeBox.innerHTML = `<h1>Willkommen zurück!</h1>`;
   }
@@ -79,7 +84,7 @@ class DashboardController {
   // ---- Profile ----
 
   updateProfile() {
-    const profileName   = document.getElementById("profileName");
+    const profileName = document.getElementById("profileName");
     const profileAvatar = document.getElementById("profileAvatar");
 
     if (!profileName || !profileAvatar) {
@@ -87,19 +92,20 @@ class DashboardController {
       return;
     }
 
-    const stored      = localStorage.getItem('displayName');
-    const fallback    = (getUserLabelUnified() || "User").split("@")[0] || 'Benutzer';
-    const nameDisplay = (stored !== null && stored !== '') ? stored : fallback;
+    const stored = localStorage.getItem("displayName");
+    const fallback =
+      (getUserLabelUnified() || "User").split("@")[0] || "Benutzer";
+    const nameDisplay = stored !== null && stored !== "" ? stored : fallback;
 
     const initials = nameDisplay
       .split(" ")
       .filter(Boolean)
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
 
-    profileName.textContent   = nameDisplay;
+    profileName.textContent = nameDisplay;
     profileAvatar.textContent = initials;
   }
 
@@ -110,30 +116,46 @@ class DashboardController {
       const [persons, occasions, giftIdeas] = await Promise.all([
         listPersons().catch(() => []),
         listOccasions().catch(() => []),
-        listGiftIdeas().catch(() => [])
+        listGiftIdeas().catch(() => []),
       ]);
 
-      const upcomingBirthdays = dashboardSection.getUpcomingBirthdays(persons, giftIdeas, occasions);
-      const christmasStatus = dashboardSection.getChristmasStatus(persons, giftIdeas, occasions);
-      const notificationEntries = dashboardSection.getNotificationEntries(upcomingBirthdays, christmasStatus);
+      const upcomingBirthdays = dashboardSection.getUpcomingBirthdays(
+        persons,
+        giftIdeas,
+        occasions,
+      );
+      const christmasStatus = dashboardSection.getChristmasStatus(
+        persons,
+        giftIdeas,
+        occasions,
+      );
+      const notificationEntries = dashboardSection.getNotificationEntries(
+        upcomingBirthdays,
+        christmasStatus,
+      );
       const readNotifications = this.getReadNotifications();
-      const unreadCount = dashboardSection.getUnreadNotificationCount(notificationEntries, readNotifications);
+      const unreadCount = dashboardSection.getUnreadNotificationCount(
+        notificationEntries,
+        readNotifications,
+      );
 
       this.notificationBadge.textContent = String(unreadCount);
-      this.notificationBadge.classList.toggle('bg-danger', unreadCount > 0);
-      this.notificationBadge.classList.toggle('bg-success', unreadCount === 0);
+      this.notificationBadge.classList.toggle("bg-danger", unreadCount > 0);
+      this.notificationBadge.classList.toggle("bg-success", unreadCount === 0);
     } catch (err) {
-      console.warn('Benachrichtigungszähler konnte nicht geladen werden:', err);
-      this.notificationBadge.textContent = '0';
-      this.notificationBadge.classList.remove('bg-danger');
-      this.notificationBadge.classList.add('bg-success');
+      console.warn("Benachrichtigungszähler konnte nicht geladen werden:", err);
+      this.notificationBadge.textContent = "0";
+      this.notificationBadge.classList.remove("bg-danger");
+      this.notificationBadge.classList.add("bg-success");
     }
   }
 
   getReadNotifications() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(READ_NOTIFICATIONS_STORAGE_KEY) || '{}');
-      if (!parsed || typeof parsed !== 'object') return {};
+      const parsed = JSON.parse(
+        localStorage.getItem(READ_NOTIFICATIONS_STORAGE_KEY) || "{}",
+      );
+      if (!parsed || typeof parsed !== "object") return {};
       return parsed;
     } catch {
       return {};
@@ -141,7 +163,10 @@ class DashboardController {
   }
 
   setReadNotifications(readNotifications) {
-    localStorage.setItem(READ_NOTIFICATIONS_STORAGE_KEY, JSON.stringify(readNotifications || {}));
+    localStorage.setItem(
+      READ_NOTIFICATIONS_STORAGE_KEY,
+      JSON.stringify(readNotifications || {}),
+    );
   }
 
   markNotificationRead(notificationId) {
@@ -156,40 +181,40 @@ class DashboardController {
 
   registerEventListeners() {
     // Profil-Dropdown toggle
-    this.profileMenuToggle.addEventListener('click', () => {
-      this.dropdownMenu.classList.toggle('show');
+    this.profileMenuToggle.addEventListener("click", () => {
+      this.dropdownMenu.classList.toggle("show");
     });
 
     // Dropdown schließen bei Klick außerhalb
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.profile-dropdown')) {
-        this.dropdownMenu.classList.remove('show');
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".profile-dropdown")) {
+        this.dropdownMenu.classList.remove("show");
       }
     });
 
     // Navigation
-    this.navButtons.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    this.navButtons.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
         await this.switchSection(e.currentTarget.dataset.section);
       });
     });
 
     // Logout
-    this.logoutBtn.addEventListener('click', async (e) => {
+    this.logoutBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       await this.handleLogout();
     });
 
     // Profil-Einstellungen
-    this.profileSettings.addEventListener('click', (e) => {
+    this.profileSettings.addEventListener("click", (e) => {
       e.preventDefault();
-      this.dropdownMenu.classList.remove('show');
-      this.switchSection('settings');
+      this.dropdownMenu.classList.remove("show");
+      this.switchSection("settings");
     });
 
-    this.notificationBell?.addEventListener('click', async () => {
-      this.dropdownMenu?.classList.remove('show');
-      await this.switchSection('dashboard');
+    this.notificationBell?.addEventListener("click", async () => {
+      this.dropdownMenu?.classList.remove("show");
+      await this.switchSection("dashboard");
     });
   }
 
@@ -197,14 +222,14 @@ class DashboardController {
 
   async switchSection(section, params = {}) {
     this.currentSection = section;
-    this.currentParams  = params || {};
+    this.currentParams = params || {};
 
     if (this.currentSectionModule?.destroy) {
       this.currentSectionModule.destroy();
     }
 
-    this.navButtons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.section === section);
+    this.navButtons.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.section === section);
     });
 
     await this.renderSection(section);
@@ -221,11 +246,12 @@ class DashboardController {
     `;
 
     const ctx = {
-      setPageHeader:  (title, description) => this.setPageHeader(title, description),
+      setPageHeader: (title, description) =>
+        this.setPageHeader(title, description),
       resetPageHeader: () => this.resetPageHeader(),
-      navigate:       (sec, params) => this.switchSection(sec, params),
-      params:         this.currentParams || {},
-      updateProfile:  () => this.updateProfile(),
+      navigate: (sec, params) => this.switchSection(sec, params),
+      params: this.currentParams || {},
+      updateProfile: () => this.updateProfile(),
       getReadNotifications: () => this.getReadNotifications(),
       markNotificationRead: (id) => this.markNotificationRead(id),
     };
@@ -236,12 +262,12 @@ class DashboardController {
     try {
       this.currentSectionModule = module;
 
-      if (section === 'dashboard') this.resetPageHeader();
+      if (section === "dashboard") this.resetPageHeader();
 
       await module.render(this.contentArea, ctx);
       await this.updateNotificationBellCount();
     } catch (err) {
-      console.error('Fehler beim Laden der Sektion:', err);
+      console.error("Fehler beim Laden der Sektion:", err);
       this.contentArea.innerHTML = `
         <div class="alert alert-danger">
           <i class="bi bi-exclamation-circle"></i> Fehler beim Laden: ${err.message}
@@ -255,14 +281,14 @@ class DashboardController {
   async handleLogout() {
     try {
       await logoutUnified();
-      window.location.href = './login.html';
+      window.location.href = "./login.html";
     } catch (err) {
-      console.error('Logout Error:', err);
-      alert('Fehler beim Abmelden');
+      console.error("Logout Error:", err);
+      alert("Fehler beim Abmelden");
     }
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   new DashboardController();
 });
