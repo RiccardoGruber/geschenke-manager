@@ -54,6 +54,22 @@ function normalizeStatus(status) {
   return String(status || '').trim().toLowerCase();
 }
 
+function parseDateOnly(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  d.setHours(0, 0, 0, 0);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDisplayDate(value) {
+  const d = parseDateOnly(value);
+  if (!d) return '-';
+  return d.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 function formatStatus(status) {
   const s = normalizeStatus(status);
   if (s === 'ueberreicht') return 'Ueberreicht';
@@ -76,34 +92,44 @@ function getPersonDetailData(personId) {
 export function calculatePersonPreviewStats(person) {
   const personId = person?.id;
   if (!personId) {
-    return { ideasTotal: 0, ideasOpen: 0, pastTotal: 0, hasOpenTasks: false };
+    return { ideasTotal: 0, ideasOpen: 0, giftsTotal: 0, giftsOpen: 0 };
   }
 
   const ideas = allGiftIdeas.filter((idea) => idea.personId === personId);
+  const gifts = allGifts.filter((gift) => gift.personId === personId);
   const ideasTotal = ideas.length;
   const ideasOpen = ideas.filter((idea) => normalizeStatus(idea.status) === 'offen').length;
-  const pastTotal = allPastGifts.filter((gift) => gift.personId === personId).length;
+  const giftsTotal = gifts.length;
+  const giftsOpen = gifts.filter((gift) => normalizeStatus(gift.status) === 'offen').length;
 
   return {
     ideasTotal,
     ideasOpen,
-    pastTotal,
-    hasOpenTasks: ideasOpen > 0
+    giftsTotal,
+    giftsOpen
   };
 }
 
 export function renderPersonPreviewStats(person) {
   const stats = calculatePersonPreviewStats(person);
-  const openBadge = stats.hasOpenTasks
-    ? `<span class="badge bg-warning text-dark">Offen</span>`
-    : `<span class="badge bg-success">Alles erledigt</span>`;
+  const openCountsBadgeStyle = 'background-color: #ffe7b3; color: #7a5a00;';
 
   return `
-    <div class="d-flex flex-wrap gap-2 mt-3">
-      <span class="badge bg-light text-dark">${stats.ideasTotal} Ideen</span>
-      <span class="badge bg-light text-dark">${stats.ideasOpen} offen</span>
-      <span class="badge bg-light text-dark">${stats.pastTotal} Geschenke</span>
-      ${openBadge}
+    <div class="mt-3">
+      <div class="row g-2">
+        <div class="col-6">
+          <span class="badge bg-light text-dark w-100 text-start py-2">${stats.ideasTotal} Ideen</span>
+        </div>
+        <div class="col-6">
+          <span class="badge w-100 text-start py-2" style="${openCountsBadgeStyle}">${stats.ideasOpen} Ideen offen</span>
+        </div>
+        <div class="col-6">
+          <span class="badge bg-light text-dark w-100 text-start py-2">${stats.giftsTotal} Geschenke</span>
+        </div>
+        <div class="col-6">
+          <span class="badge w-100 text-start py-2" style="${openCountsBadgeStyle}">${stats.giftsOpen} Geschenke offen</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -297,7 +323,7 @@ function renderPersonDetails(personId) {
 
       const meta = type === 'ideas'
         ? `${item.occasionName || '-'} · ${formatStatus(item.status)}`
-        : `${item.date || '-'} · ${formatStatus(item.status)}`;
+        : `${formatDisplayDate(item.date)} · ${formatStatus(item.status)}`;
 
       const cardClass = type === 'ideas' ? 'gift-idea-card' : 'gift-card';
       const iconClass = type === 'ideas' ? 'text-warning' : (type === 'past' ? 'text-success' : 'text-primary');
@@ -367,11 +393,10 @@ function renderPersonsList() {
     <div class="row g-3">
       ${filteredPersons.map((person) => {
         const isOpen = currentlyOpenPersonId === person.id;
-        const hasBirthday = String(person.birthday || '').trim() !== '';
         return `
           <div class="col-12 col-md-6 col-lg-4">
             <div class="card h-100 gift-card person-card ${isOpen ? 'active' : ''}" data-person-card="${person.id}" style="cursor:pointer;">
-              <div class="card-body">
+              <div class="card-body d-flex flex-column">
                 <h2 class="gift-primary-title mb-2">
                   <i class="bi bi-person-circle text-primary"></i>
                   ${person.name}
@@ -380,21 +405,21 @@ function renderPersonsList() {
                   <div class="gift-meta-item">
                     <i class="bi bi-calendar-event text-muted"></i>
                     <span class="fw-semibold">Geburtstag:</span>
-                    <span>${hasBirthday ? person.birthday : '-'}</span>
+                    <span>${formatDisplayDate(person.birthday)}</span>
                   </div>
-                  ${person.info ? `
-                    <div class="gift-meta-item">
-                      <i class="bi bi-chat-left-text text-muted"></i>
-                      <span class="fw-semibold">Info:</span>
-                      <span class="text-muted">${person.info}</span>
-                    </div>
-                  ` : ''}
+                  <div class="gift-meta-item">
+                    <i class="bi bi-chat-left-text text-muted"></i>
+                    <span class="fw-semibold">Info:</span>
+                    <span class="text-muted text-truncate d-inline-block" style="max-width: 200px;">${person.info || '-'}</span>
+                  </div>
                 </div>
-                ${renderPersonPreviewStats(person)}
-                <div class="d-flex justify-content-end mt-3">
-                  <span class="badge bg-light text-dark">
-                    <i class="bi bi-chevron-${isOpen ? 'up' : 'down'}"></i> ${isOpen ? 'Weniger' : 'Details'}
-                  </span>
+                <div class="mt-auto">
+                  ${renderPersonPreviewStats(person)}
+                  <div class="d-flex justify-content-end mt-3">
+                    <span class="badge bg-light text-dark">
+                      <i class="bi bi-chevron-${isOpen ? 'up' : 'down'}"></i> ${isOpen ? 'Weniger' : 'Details'}
+                    </span>
+                  </div>
                 </div>
                 ${isOpen ? renderPersonDetails(person.id) : ''}
               </div>
@@ -726,4 +751,3 @@ export function destroy() {
   currentlyOpenPersonId = null;
   currentCtx = null;
 }
-

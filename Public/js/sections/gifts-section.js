@@ -609,6 +609,12 @@ function parseDateOnly(value) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function formatDisplayDate(value) {
+  const d = parseDateOnly(value);
+  if (!d) return '-';
+  return d.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 function isDateInPast(value) {
   const d = parseDateOnly(value);
   if (!d) return false;
@@ -811,7 +817,7 @@ function renderList() {
 function renderGiftCard(item) {
   const media = parseGiftNoteMedia(item.note || '');
   const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const statusText  = item.status === 'ueberreicht' ? 'Überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
@@ -830,7 +836,7 @@ function renderGiftCard(item) {
             <div class="gift-meta-item">
               <i class="bi bi-calendar-event text-muted"></i>
               <span class="fw-semibold">Datum:</span>
-              <span>${item.date}</span>
+              <span>${formatDisplayDate(item.date)}</span>
             </div>
             <div class="gift-meta-item">
               <i class="bi bi-person text-muted"></i>
@@ -951,7 +957,7 @@ function renderIdeaCard(item) {
               <div class="gift-meta-item">
                 <i class="bi bi-calendar-event text-muted"></i>
                 <span class="fw-semibold">Datum:</span>
-                <span>${item.date}</span>
+                <span>${formatDisplayDate(item.date)}</span>
               </div>
             ` : ''}
             ${contentPreview ? `<div class="gift-idea-content">${contentPreview}</div>` : ''}
@@ -997,7 +1003,7 @@ function renderPastGiftCard(item) {
             <div class="gift-meta-item">
               <i class="bi bi-calendar-event text-muted"></i>
               <span class="fw-semibold">Datum:</span>
-              <span>${item.date || '-'}</span>
+              <span>${formatDisplayDate(item.date)}</span>
             </div>
             <div class="gift-meta-item">
               <i class="bi bi-person text-muted"></i>

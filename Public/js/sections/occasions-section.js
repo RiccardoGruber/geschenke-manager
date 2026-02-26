@@ -35,6 +35,8 @@ let filters = {
   status:    'all'   // 'all' | 'active' | 'inactive'
 };
 
+const FIXED_OCCASION_PRESETS = ['Geburtstag', 'Weihnachten'];
+
 // ---------- Date Helpers ----------
 
 function _asDate(val) {
@@ -66,6 +68,12 @@ function _daysUntil(dateVal) {
   d.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
   return Math.floor((d - now) / (1000 * 60 * 60 * 24));
+}
+
+function isFixedOccasion(occasion) {
+  const type = String(occasion?.type || '').trim().toLowerCase();
+  const name = String(occasion?.name || '').trim();
+  return type === 'fixed' || FIXED_OCCASION_PRESETS.includes(name);
 }
 
 // ---------- Event Listener Helpers ----------
@@ -282,8 +290,9 @@ function applyFilters() {
     }
 
     if (filters.type !== 'all') {
-      if (filters.type === 'fixed'  && occ.type !== 'fixed')  return false;
-      if (filters.type === 'custom' && occ.type === 'fixed')   return false;
+      const fixed = isFixedOccasion(occ);
+      if (filters.type === 'fixed'  && !fixed) return false;
+      if (filters.type === 'custom' && fixed) return false;
     }
 
     if (filters.status !== 'all') {
@@ -316,7 +325,7 @@ function renderList() {
   });
 
   const cards = sorted.map(occ => {
-    const isFixed    = occ.type === 'fixed';
+    const isFixed    = isFixedOccasion(occ);
     const daysUntil  = _daysUntil(occ.date);
     const statusBadge = occ.isActive ? 'success' : 'secondary';
     const statusText  = occ.isActive ? 'Aktiv' : 'Deaktiviert';
@@ -333,7 +342,7 @@ function renderList() {
     }
 
     return `
-      <div class="col-12 col-md-6 col-lg-4">
+      <div class="col-12 col-md-6 col-lg-6">
         <div class="card h-100 occasion-card ${isFixed ? 'occasion-card-fixed' : ''}" data-id="${occ.id}">
           <div class="card-body">
             <h2 class="occasion-primary-title">
@@ -350,7 +359,7 @@ function renderList() {
               <div class="occasion-meta-item">
                 <i class="bi bi-calendar3 text-muted"></i>
                 <span class="fw-semibold">Datum:</span>
-                <span>${_formatDate(occ.date)}</span>
+                <span class="text-nowrap">${_formatDate(occ.date)}</span>
               </div>
 
               ${urgencyText ? `
@@ -391,9 +400,6 @@ function renderList() {
                   <i class="bi bi-trash"></i>
                 </button>
               `}
-              <button class="btn btn-sm btn-outline-${occ.isActive ? 'secondary' : 'success'} toggle-btn">
-                <i class="bi bi-toggle-${occ.isActive ? 'on' : 'off'}"></i>
-              </button>
             </div>
           </div>
         </div>
@@ -418,6 +424,11 @@ function renderForm() {
   const isEdit = mode === 'edit';
   const item   = isEdit ? allOccasions.find(o => o.id === editingId) : null;
   const title  = isEdit ? 'Anlass bearbeiten' : 'Neuer Anlass';
+  const selectedPreset = item
+    ? (FIXED_OCCASION_PRESETS.includes(String(item.name || '').trim()) ? String(item.name || '').trim() : '__custom__')
+    : '';
+  const customNameDefault = item && selectedPreset === '__custom__' ? String(item.name || '') : '';
+  const customNameHidden = selectedPreset === '__custom__' ? '' : 'd-none';
 
   formDiv.innerHTML = `
     <div class="card">
@@ -431,18 +442,13 @@ function renderForm() {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Name <span class="text-danger">*</span></label>
-              ${isEdit ? `
-                <input type="text" id="formName" class="form-control"
-                       value="${item ? item.name : ''}" required
-                       placeholder="z.B. Hochzeitstag, Firmenjubiläum">
-              ` : `
-                <select id="formNamePreset" class="form-select" required>
-                  <option value="">Bitte wählen...</option>
-                  <option value="Geburtstag">Geburtstag</option>
-                  <option value="Weihnachten">Weihnachten</option>
-                  <option value="__custom__">Individueller Anlass...</option>
-                </select>
-              `}
+              <select id="formNamePreset" class="form-select" required>
+                <option value="" ${!selectedPreset ? 'selected' : ''}>Bitte wählen...</option>
+                ${FIXED_OCCASION_PRESETS.map((name) => `
+                  <option value="${name}" ${selectedPreset === name ? 'selected' : ''}>${name}</option>
+                `).join('')}
+                <option value="__custom__" ${selectedPreset === '__custom__' ? 'selected' : ''}>Individueller Anlass...</option>
+              </select>
             </div>
 
             <div class="col-md-6 mb-3">
@@ -455,15 +461,14 @@ function renderForm() {
             </div>
           </div>
 
-          ${!isEdit ? `
-            <div class="row">
-              <div class="col-md-6 mb-3 d-none" id="customNameWrap">
-                <label class="form-label">Individueller Anlass <span class="text-danger">*</span></label>
-                <input type="text" id="formCustomName" class="form-control"
-                       placeholder="z.B. Hochzeitstag, Firmenjubiäum">
-              </div>
+          <div class="row">
+            <div class="col-md-6 mb-3 ${customNameHidden}" id="customNameWrap">
+              <label class="form-label">Individueller Anlass <span class="text-danger">*</span></label>
+              <input type="text" id="formCustomName" class="form-control"
+                     value="${customNameDefault}"
+                     placeholder="z.B. Hochzeitstag, Firmenjubiläum">
             </div>
-          ` : ''}
+          </div>
 
           <div class="row">
             <div class="col-md-6 mb-3">
@@ -521,12 +526,14 @@ function renderForm() {
   const customNameWrap = document.getElementById('customNameWrap');
   const customNameInput = document.getElementById('formCustomName');
   if (namePreset && customNameWrap && customNameInput) {
-    namePreset.addEventListener('change', () => {
+    const syncNamePresetState = () => {
       const isCustom = namePreset.value === '__custom__';
       customNameWrap.classList.toggle('d-none', !isCustom);
       customNameInput.required = isCustom;
       if (!isCustom) customNameInput.value = '';
-    });
+    };
+    namePreset.addEventListener('change', syncNamePresetState);
+    syncNamePresetState();
   }
 }
 // ---------- Event Handlers ----------
@@ -578,17 +585,12 @@ function attachEventListeners(ctx) {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
 
     try {
-      let name = '';
-      if (mode === 'edit') {
-        name = document.getElementById('formName').value.trim();
-      } else {
-        const selected = document.getElementById('formNamePreset')?.value || '';
-        if (selected === '__custom__') {
-          name = document.getElementById('formCustomName')?.value.trim() || '';
-        } else {
-          name = String(selected).trim();
-        }
-      }
+      const selected = document.getElementById('formNamePreset')?.value || '';
+      const isCustomName = selected === '__custom__';
+      const name = isCustomName
+        ? (document.getElementById('formCustomName')?.value.trim() || '')
+        : String(selected).trim();
+      const type = isCustomName ? 'custom' : 'fixed';
       const date     = document.getElementById('formDate').value;
       const person   = document.getElementById('formPerson').value;
       const info     = document.getElementById('formInfo').value.trim();
@@ -602,9 +604,9 @@ function attachEventListeners(ctx) {
       }
 
       if (mode === 'edit' && editingId) {
-        await updateOccasion(editingId, { name, date, person, info, isActive });
+        await updateOccasion(editingId, { name, date, person, type, info, isActive });
       } else {
-        await createOccasion({ name, date, person, type: 'custom', info, isActive });
+        await createOccasion({ name, date, person, type, info, isActive });
       }
 
       allOccasions = await listOccasions();
@@ -696,32 +698,6 @@ function attachListListeners() {
     });
   });
 
-  // Aktiv/Inaktiv umschalten
-  document.querySelectorAll('#listContainer .toggle-btn').forEach(btn => {
-    addListener(btn, 'click', async (e) => {
-      e.preventDefault();
-      const id  = btn.closest('[data-id]').dataset.id;
-      const occ = allOccasions.find(o => o.id === id);
-      if (!occ) return;
-
-      const user = await waitForUserOnce();
-      if (!user) { window.location.href = './login.html'; return; }
-
-      try {
-        btn.disabled = true;
-        await updateOccasion(id, { isActive: !occ.isActive });
-        allOccasions = await listOccasions();
-        applyFilters();
-        renderList();
-        attachListListeners();
-      } catch (err) {
-        console.error(err);
-        alert('Fehler: ' + err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    });
-  });
 }
 
 // ---------- Lifecycle ----------
