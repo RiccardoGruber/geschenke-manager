@@ -36,7 +36,7 @@ let generatedSuggestions = [];
 let generatedForPersonId = '';
 let selectedGeneratedSuggestionIds = new Set();
 
-// Feste AnlÃ¤sse (immer verfÃ¼gbar, unabhÃ¤ngig von DB-Daten)
+// Feste Anlässe (immer verfägbar, unabhä¤ngig von DB-Daten)
 const FIXED_OCCASIONS = [
   { id: 'geburtstag',  name: 'Geburtstag' },
   { id: 'weihnachten', name: 'Weihnachten' }
@@ -65,18 +65,18 @@ function showDeleteConfirmModal(itemLabel = '') {
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="giftDeleteModalTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
           <h5 id="giftDeleteModalTitle" class="mb-0">
-            <i class="bi bi-exclamation-triangle text-danger"></i> Eintrag lÃ¶schen
+            <i class="bi bi-exclamation-triangle text-danger"></i> Eintrag löschen
           </h5>
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">Moechtest du diesen Eintrag wirklich lÃ¶schen?</p>
+          <p class="mb-2">Moechtest du diesen Eintrag wirklich löschen?</p>
           <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
         </div>
         <div class="occasion-delete-modal-actions">
           <button type="button" class="btn btn-outline-secondary" data-action="cancel">Abbrechen</button>
           <button type="button" class="btn btn-danger" data-action="confirm">
-            <i class="bi bi-trash"></i> LÃ¶schen
+            <i class="bi bi-trash"></i> Löschen
           </button>
         </div>
       </div>
@@ -150,12 +150,12 @@ function showPersonSharePickerModal() {
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="sharePersonPickerTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
           <h5 id="sharePersonPickerTitle" class="mb-0">
-            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wÃ¤hlen
+            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wählen
           </h5>
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="text-muted small mb-3">WÃ¤hle die Person, deren Geschenkideen geteilt werden sollen.</p>
+          <p class="text-muted small mb-3">Wähle die Person, deren Geschenkideen geteilt werden sollen.</p>
           <div class="share-person-list">
             ${persons.map((p) => `
               <button type="button" class="share-person-option" data-person-id="${p.id}">
@@ -437,7 +437,7 @@ async function handleAdoptGeneratedSuggestions() {
 }
 
 /**
- * Entfernt aus DB-AnlÃ¤ssen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
+ * Entfernt aus DB-Anlässen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
  */
 function getDeduplicatedOccasions() {
   const fixedNames = FIXED_OCCASIONS.map(o => o.name.toLowerCase());
@@ -705,14 +705,14 @@ function renderFilters(container) {
 
       <div>
         <select id="filterOccasion" class="form-select">
-          <option value="all" ${filters.occasion === 'all' ? 'selected' : ''}>Alle AnlÃ¤sse</option>
-          <optgroup label="Feste AnlÃ¤sse">
+          <option value="all" ${filters.occasion === 'all' ? 'selected' : ''}>Alle Anlässe</option>
+          <optgroup label="Feste Anlässe">
             ${FIXED_OCCASIONS.map(o => `
               <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
             `).join('')}
           </optgroup>
           ${customOccasions.length ? `
-            <optgroup label="Eigene AnlÃ¤sse">
+            <optgroup label="Eigene Anlässe">
               ${customOccasions.map(o => `
                 <option value="${o.id}" ${filters.occasion === o.id ? 'selected' : ''}>${o.name}</option>
               `).join('')}
@@ -796,7 +796,7 @@ function renderList() {
 function renderGiftCard(item) {
   const media = parseGiftNoteMedia(item.note || '');
   const statusBadge = item.status === 'ueberreicht' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'ueberreicht' ? 'Ãœberreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const statusText  = item.status === 'ueberreicht' ? 'überreicht' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
 
   return `
     <div class="col-12 col-md-6 col-lg-4">
@@ -847,7 +847,7 @@ function renderGiftCard(item) {
               <div class="gift-meta-item">
                 <i class="bi bi-image text-muted"></i>
                 <span class="fw-semibold">Bild:</span>
-                <a href="${media.imageUrl}" target="_blank" class="gift-link text-truncate">Bild Ã¶ffnen</a>
+                <a href="${media.imageUrl}" target="_blank" class="gift-link text-truncate">Bild öffnen</a>
               </div>
             ` : ''}
             ${item.sourceIdeaId ? `
@@ -1036,7 +1036,7 @@ function renderConvertForm(formDiv) {
       <div class="card-body">
         <div class="alert alert-info">
           <strong>Idee:</strong> ${idea.content}<br>
-          <strong>FÃ¼r:</strong> ${idea.personName}
+          <strong>Für:</strong> ${idea.personName}
         </div>
 
         <form id="convertForm">
@@ -1044,7 +1044,7 @@ function renderConvertForm(formDiv) {
             <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
             <input type="text" id="convertGiftName" class="form-control" required
                    value="${defaultGiftName}"
-                   placeholder="z.B. Amazon Gutschein, Buch 'Die SÃ¤ulen der Erde'">
+                   placeholder="z.B. Amazon Gutschein, Buch 'Die Säulen der Erde'">
           </div>
 
           <div class="mb-3">
@@ -1055,14 +1055,14 @@ function renderConvertForm(formDiv) {
               <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
             </div>
             <small class="text-muted">
-              <i class="bi bi-info-circle"></i> Klicke auf das Feld, um ein Datum auszuwÃ¤hlen
+              <i class="bi bi-info-circle"></i> Klicke auf das Feld, um ein Datum auszuwählen
             </small>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Notiz</label>
             <textarea id="convertNote" class="form-control" rows="3"
-                      placeholder="Optional: ZusÃ¤tzliche Informationen zum Geschenk"></textarea>
+                      placeholder="Optional: Zusätzliche Informationen zum Geschenk"></textarea>
           </div>
 
           <div class="d-flex gap-2">
@@ -1105,7 +1105,7 @@ function renderEntityForm(formDiv) {
             <div class="col-md-6 mb-3">
               <label class="form-label">Person <span class="text-danger">*</span></label>
               <select id="formPerson" class="form-select" required>
-                <option value="">Bitte wÃ¤hlen...</option>
+                <option value="">Bitte wählen...</option>
                 ${persons.map(p => `
                   <option value="${p.id}" ${item && item.personId === p.id ? 'selected' : ''}>${p.name}</option>
                 `).join('')}
@@ -1116,13 +1116,13 @@ function renderEntityForm(formDiv) {
               <label class="form-label">Anlass</label>
               <select id="formOccasion" class="form-select">
                 <option value="">Kein spezifischer Anlass</option>
-                <optgroup label="Feste AnlÃ¤sse">
+                <optgroup label="Feste Anlässe">
                   ${FIXED_OCCASIONS.map(o => `
                     <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
                   `).join('')}
                 </optgroup>
                 ${customOccasions.length ? `
-                  <optgroup label="Eigene AnlÃ¤sse">
+                  <optgroup label="Eigene Anlässe">
                     ${customOccasions.map(o => `
                       <option value="${o.id}" ${item && item.occasionId === o.id ? 'selected' : ''}>${o.name}</option>
                     `).join('')}
@@ -1135,7 +1135,7 @@ function renderEntityForm(formDiv) {
             <div class="col-12 mb-3 d-none" id="customOccasionDiv">
               <label class="form-label">Individueller Anlass</label>
               <input type="text" id="formCustomOccasion" class="form-control"
-                     placeholder="z.B. Hochzeitstag, FirmenjubilÃ¤um">
+                     placeholder="z.B. Hochzeitstag, Firmenjubiläum">
             </div>
           </div>
 
@@ -1150,7 +1150,7 @@ function renderEntityForm(formDiv) {
             </button>
             ${isEdit ? `
               <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
-                <i class="bi bi-trash"></i> LÃ¶schen
+                <i class="bi bi-trash"></i> Löschen
               </button>
             ` : ''}
           </div>
@@ -1170,7 +1170,7 @@ function renderEntityForm(formDiv) {
     });
   }
 
-  // Datepicker fÃ¼r Geschenke
+  // Datepicker für Geschenke
   if (currentTab === 'gifts') {
     const dateInput = document.getElementById('formDate');
     const dateGroup = dateInput?.closest('.input-group');
@@ -1548,7 +1548,7 @@ async function handleConvertSubmit(e, ctx) {
   const giftName    = document.getElementById('convertGiftName').value.trim();
 
   if (!date || !giftName) {
-    alert('Bitte fÃ¼lle alle Pflichtfelder aus!');
+    alert('Bitte fülle alle Pflichtfelder aus!');
     return;
   }
 
@@ -1737,7 +1737,7 @@ export async function render(container, ctx) {
       <div id="tabFilters"></div>
 
       <div id="giftsLoading" class="text-center my-3 d-none">
-        <div class="spinner-border" role="status"><span class="visually-hidden">LÃ¤dt...</span></div>
+        <div class="spinner-border" role="status"><span class="visually-hidden">Lädt...</span></div>
       </div>
 
       <div id="formContainer" class="mb-4"></div>
@@ -1765,5 +1765,6 @@ export function destroy() {
   clearGeneratedSuggestions();
 }
 
-
+
+
 
