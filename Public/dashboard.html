@@ -79,6 +79,11 @@
             border-left: 1px solid #ecf0f1;
         }
 
+        .overview-link {
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
         .notification-bell {
             position: relative;
             width: 40px;
@@ -304,6 +309,9 @@
         </nav>
 
         <div class="dashboard-profile">
+            <a class="btn btn-sm btn-outline-secondary overview-link" href="./overview.html" title="Vollständige Liste als HTML">
+                <i class="bi bi-list-check"></i> HTML-Übersicht
+            </a>
             <button class="notification-bell" id="notificationBell" type="button" title="Benachrichtigungen">
                 <i class="bi bi-bell"></i>
                 <span class="badge bg-danger" id="notificationBadge">0</span>
