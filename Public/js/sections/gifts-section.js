@@ -617,19 +617,28 @@ function isDateInPast(value) {
   return d < today;
 }
 
+function normalizeIdeaStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'erledigt') return 'besorgt';
+  if (normalized === 'besorgt') return 'besorgt';
+  return 'offen';
+}
+
 function getPastDisplayGifts() {
-  const plannedByRule = gifts.filter((gift) => {
-    const status = String(gift?.status || '').toLowerCase();
-    return status === 'ueberreicht' || isDateInPast(gift?.date);
-  });
+  const plannedByRule = gifts.filter((gift) => isDateInPast(gift?.date));
+  const explicitPastByDate = pastGifts.filter((gift) => isDateInPast(gift?.date));
 
   const map = new Map();
-  [...pastGifts, ...plannedByRule].forEach((gift) => {
+  [...explicitPastByDate, ...plannedByRule].forEach((gift) => {
     if (!gift?.id) return;
     if (!map.has(gift.id)) map.set(gift.id, gift);
   });
 
   return [...map.values()].sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
+}
+
+function getPlannedDisplayGifts() {
+  return gifts.filter((gift) => !isDateInPast(gift?.date));
 }
 
 async function loadData() {
@@ -665,7 +674,13 @@ function applyFilters(src) {
     }
     if (filters.person   !== 'all' && item.personId   !== filters.person)   return false;
     if (filters.occasion !== 'all' && item.occasionId !== filters.occasion) return false;
-    if (filters.status !== 'all' && item.status !== filters.status) return false;
+    if (filters.status !== 'all') {
+      if (currentTab === 'ideas') {
+        if (normalizeIdeaStatus(item.status) !== filters.status) return false;
+      } else if (item.status !== filters.status) {
+        return false;
+      }
+    }
     return true;
   });
 }
@@ -681,7 +696,7 @@ function resolveOccasionName(occasionId) {
 
 function renderFilters(container) {
   const statuses = currentTab === 'ideas'
-    ? ['all', 'offen']
+    ? ['all', 'offen', 'besorgt']
     : ['all', 'offen', 'besorgt', 'ueberreicht'];
 
   const customOccasions = getDeduplicatedOccasions();
@@ -726,7 +741,7 @@ function renderFilters(container) {
           ${statuses.map(s => {
             let label = s === 'all' ? 'Alle Status' : s.charAt(0).toUpperCase() + s.slice(1);
             if (currentTab === 'ideas') {
-              label = s === 'all' ? 'Alle Ideen' : 'Nur offene Ideen';
+              label = s === 'all' ? 'Alle Ideen' : s.charAt(0).toUpperCase() + s.slice(1);
             }
             return `<option value="${s}" ${filters.status === s ? 'selected' : ''}>${label}</option>`;
           }).join('')}
@@ -754,7 +769,7 @@ function renderFilters(container) {
 
 function renderList() {
   const listDiv = document.getElementById('listContainer');
-  const source  = currentTab === 'gifts' ? gifts : (currentTab === 'ideas' ? ideas : getPastDisplayGifts());
+  const source  = currentTab === 'gifts' ? getPlannedDisplayGifts() : (currentTab === 'ideas' ? ideas : getPastDisplayGifts());
   const src     = applyFilters(source);
   const suggestionsPanel = renderGeneratedSuggestionsPanel();
   const sectionTitle = currentTab === 'gifts'
@@ -874,8 +889,9 @@ function renderGiftCard(item) {
 }
 
 function renderIdeaCard(item) {
-  const statusBadge = item.status === 'erledigt' ? 'success' : item.status === 'besorgt' ? 'info' : 'warning';
-  const statusText  = item.status === 'erledigt' ? 'Erledigt' : item.status === 'besorgt' ? 'Besorgt' : 'Offen';
+  const ideaStatus = normalizeIdeaStatus(item.status);
+  const statusBadge = ideaStatus === 'besorgt' ? 'info' : 'warning';
+  const statusText  = ideaStatus === 'besorgt' ? 'Besorgt' : 'Offen';
   const cardTitle   = item.giftName || item.occasionName || 'Geschenkidee';
   const detailsText = item.note || (!(item.giftName) ? item.content : '');
   const media = getIdeaMedia(item);
@@ -1062,7 +1078,7 @@ function renderConvertForm(formDiv) {
           <div class="mb-3">
             <label class="form-label">Notiz</label>
             <textarea id="convertNote" class="form-control" rows="3"
-                      placeholder="Optional: Zusätzliche Informationen zum Geschenk"></textarea>
+                      placeholder="Optional: Zusätzliche Informationen und ToDo´s zum Geschenk"></textarea>
           </div>
 
           <div class="d-flex gap-2">
@@ -1208,9 +1224,9 @@ function renderIdeaFormFields(item) {
     </div>
 
     <div class="mb-3">
-      <label class="form-label">Zusätzliche Informationen</label>
+      <label class="form-label">Notiz</label>
       <textarea id="formNote" class="form-control" rows="3"
-                placeholder="Optional: Details zur Geschenkidee">${ideaDetails}</textarea>
+                placeholder="ToDos und weitere Infos hier reinschreiben">${ideaDetails}</textarea>
     </div>
 
     <div class="mb-3">
@@ -1242,9 +1258,8 @@ function renderIdeaFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Status</label>
       <select id="formStatus" class="form-select">
-        <option value="offen"    ${item && item.status === 'offen'    ? 'selected' : ''}>Offen</option>
-        <option value="besorgt"  ${item && item.status === 'besorgt'  ? 'selected' : ''}>Besorgt</option>
-        <option value="erledigt" ${item && item.status === 'erledigt' ? 'selected' : ''}>Erledigt</option>
+        <option value="offen"    ${normalizeIdeaStatus(item?.status) === 'offen' ? 'selected' : ''}>Offen</option>
+        <option value="besorgt"  ${normalizeIdeaStatus(item?.status) === 'besorgt' ? 'selected' : ''}>Besorgt</option>
       </select>
     </div>
   `;
@@ -1272,7 +1287,7 @@ function renderGiftFormFields(item) {
     <div class="mb-3">
       <label class="form-label">Notiz</label>
       <textarea id="formNote" class="form-control" rows="3"
-                placeholder="Optional: Zusätzliche Informationen">${media.note || ''}</textarea>
+                placeholder="ToDos und weitere Infos hier reinschreiben">${media.note || ''}</textarea>
     </div>
 
     <div class="mb-3">

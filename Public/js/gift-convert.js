@@ -18,7 +18,7 @@ function todayYYYYMMDD() {
 /**
  * Konvertiert eine Idee in ein Geschenk.
  * - legt Gift an (date = heute)
- * - markiert Idee als "erledigt"
+ * - markiert Idee als "besorgt"
  * Rückgabe: { giftId }
  */
 export async function convertIdeaToGift(ideaId, { date = todayYYYYMMDD(), note = "" } = {}) {
@@ -37,7 +37,7 @@ export async function convertIdeaToGift(ideaId, { date = todayYYYYMMDD(), note =
     sourceIdeaId: ideaId
   });
 
-  await updateGiftIdea(ideaId, { status: "erledigt" });
+  await updateGiftIdea(ideaId, { status: "besorgt" });
 
   return { giftId };
 }

@@ -98,7 +98,7 @@ function showDeleteConfirmModal(name = '') {
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">Moechtest du diesen Anlass wirklich löschen?</p>
+          <p class="mb-2">Möchtest du diesen Anlass wirklich löschen?</p>
           <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
         </div>
         <div class="occasion-delete-modal-actions">
@@ -434,10 +434,10 @@ function renderForm() {
               ${isEdit ? `
                 <input type="text" id="formName" class="form-control"
                        value="${item ? item.name : ''}" required
-                       placeholder="z.B. Hochzeitstag, Firmenjubilaeum">
+                       placeholder="z.B. Hochzeitstag, Firmenjubiläum">
               ` : `
                 <select id="formNamePreset" class="form-select" required>
-                  <option value="">Bitte waehlen...</option>
+                  <option value="">Bitte wählen...</option>
                   <option value="Geburtstag">Geburtstag</option>
                   <option value="Weihnachten">Weihnachten</option>
                   <option value="__custom__">Individueller Anlass...</option>
@@ -460,7 +460,7 @@ function renderForm() {
               <div class="col-md-6 mb-3 d-none" id="customNameWrap">
                 <label class="form-label">Individueller Anlass <span class="text-danger">*</span></label>
                 <input type="text" id="formCustomName" class="form-control"
-                       placeholder="z.B. Hochzeitstag, Firmenjubilaeum">
+                       placeholder="z.B. Hochzeitstag, Firmenjubiäum">
               </div>
             </div>
           ` : ''}
@@ -488,7 +488,7 @@ function renderForm() {
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Zusaetzliche Informationen</label>
+            <label class="form-label">Zusätzliche Informationen</label>
             <textarea id="formInfo" class="form-control" rows="3"
                       placeholder="Optional: Weitere Details zum Anlass">${item ? item.info || '' : ''}</textarea>
           </div>
@@ -502,7 +502,7 @@ function renderForm() {
             </button>
             ${isEdit ? `
               <button type="button" class="btn btn-outline-danger ms-auto" id="deleteBtn">
-                <i class="bi bi-trash"></i> Loeschen
+                <i class="bi bi-trash"></i> Löschen
               </button>
             ` : ''}
           </div>
@@ -511,7 +511,7 @@ function renderForm() {
     </div>
   `;
 
-  // Datepicker: Klick auf die ganze Gruppe oeffnet den Picker
+  // Datepicker: Klick auf die ganze Gruppe öffnet den Picker
   const dateInput = document.getElementById('formDate');
   const dateGroup = dateInput.closest('.input-group');
   dateGroup.style.cursor = 'pointer';

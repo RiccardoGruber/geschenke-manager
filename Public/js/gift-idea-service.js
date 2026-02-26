@@ -45,14 +45,24 @@ async function ideasColRef() {
 }
 
 const TYPES = ["text", "link", "image"];
-const STATUSES = ["offen", "besorgt", "erledigt"];
+const STATUSES = ["offen", "besorgt"];
 
 function isValidType(type) {
   return TYPES.includes(type);
 }
 
 function isValidStatus(status) {
-  return STATUSES.includes(status);
+  const normalized = normalizeString(status).toLowerCase();
+  // Rückwärtskompatibel: alte Daten mit "erledigt" wie "besorgt" behandeln.
+  if (normalized === "erledigt") return true;
+  return STATUSES.includes(normalized);
+}
+
+function normalizeIdeaStatus(status) {
+  const normalized = normalizeString(status).toLowerCase();
+  if (normalized === "erledigt") return "besorgt";
+  if (STATUSES.includes(normalized)) return normalized;
+  return "offen";
 }
 
 function normalizeString(v) {
@@ -104,7 +114,7 @@ export async function createGiftIdea({
     date: normalizeString(date),
     type,
     content: validateContentByType(type, content),
-    status,
+    status: normalizeIdeaStatus(status),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -167,7 +177,7 @@ export async function updateGiftIdea(id, patch = {}) {
 
   if (patch.status !== undefined) {
     if (!isValidStatus(patch.status)) throw new Error("Ungültiger Status.");
-    out.status = patch.status;
+    out.status = normalizeIdeaStatus(patch.status);
   }
 
   await updateDoc(ref, out);
