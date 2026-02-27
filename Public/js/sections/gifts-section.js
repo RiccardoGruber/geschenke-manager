@@ -2,7 +2,6 @@
  * gifts-section.js
  * -------------------------------------------------------
  * Geschenke & Geschenkideen Verwaltung
- * Tabs: "Geschenke" (geplant) | "Geschenkideen"
  */
 
 import {
@@ -899,7 +898,7 @@ function renderList() {
       <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size: 3rem;"></i>
         <h5 class="mt-3">Keine ${sectionTitle} gefunden</h5>
-        <p>${currentTab === "past" ? "Keine Historien-Eintraege vorhanden." : `Klicke auf "Neu" um ${currentTab === "gifts" ? "ein Geschenk" : "eine Geschenkidee"} hinzuzufuegen.`}</p>
+        <p>${currentTab === "past" ? "Keine Historien-Einträge vorhanden." : `Klicke auf "Neu" um ${currentTab === "gifts" ? "ein Geschenk" : "eine Geschenkidee"} hinzuzufügen.`}</p>
       </div>
     `;
     return;

@@ -3,7 +3,6 @@
  * -------------------------------------------------------
  * Anlässe-Verwaltung
  * - Kartendesign mit Countdown und Typ-Unterscheidung
- * - Feste Anlässe (type: "fixed") sind schreibgeschützt
  * - Filter nach Zeitraum, Typ und Status
  */
 
@@ -15,7 +14,10 @@ import {
   ensureDefaultOccasions,
 } from "../occasion-service.js";
 
-import { listPersons as getPersonsList } from "../person-service.js";
+import {
+  listPersons as getPersonsList,
+  updatePerson,
+} from "../person-service.js";
 import {
   waitForUserOnce,
   isAuthed,
@@ -72,21 +74,133 @@ function _formatDate(dateVal) {
     : "—";
 }
 
-function _daysUntil(dateVal) {
-  const d = _asDate(dateVal);
-  if (!d) return null;
-  const now = new Date();
-  d.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
-  return Math.floor((d - now) / (1000 * 60 * 60 * 24));
-}
-
 function isFixedOccasion(occasion) {
   const type = String(occasion?.type || "")
     .trim()
     .toLowerCase();
   const name = String(occasion?.name || "").trim();
   return type === "fixed" || FIXED_OCCASION_PRESETS.includes(name);
+}
+
+function _normalizeText(val) {
+  return String(val || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isBirthdayOccasion(occasion) {
+  return _normalizeText(occasion?.name) === "geburtstag";
+}
+
+function isPersonBirthdayOccasion(occasion) {
+  return occasion?._origin === "person-birthday" && !!occasion?._personId;
+}
+
+function getOccasionSortDate(occasion) {
+  const baseDate = _asDate(occasion?.date);
+  if (!baseDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (isBirthdayOccasion(occasion)) {
+    const nextBirthday = new Date(
+      today.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate(),
+    );
+    nextBirthday.setHours(0, 0, 0, 0);
+    if (nextBirthday < today) nextBirthday.setFullYear(today.getFullYear() + 1);
+    return nextBirthday;
+  }
+
+  baseDate.setHours(0, 0, 0, 0);
+  return baseDate;
+}
+
+function getOccasionDaysUntil(occasion) {
+  const d = getOccasionSortDate(occasion);
+  if (!d) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.floor((d - now) / (1000 * 60 * 60 * 24));
+}
+
+function buildPersonBirthdayOccasions(persons) {
+  return (persons || [])
+    .filter((person) => person?.id && _toInputDate(person?.birthday))
+    .map((person) => ({
+      id: `person-birthday:${person.id}`,
+      name: "Geburtstag",
+      date: _toInputDate(person.birthday),
+      person: String(person.name || ""),
+      type: "fixed",
+      info: "",
+      isActive: true,
+      _origin: "person-birthday",
+      _personId: person.id,
+    }));
+}
+
+function mergeOccasionsWithBirthdays(dbOccasions, persons) {
+  const birthdayOccasions = buildPersonBirthdayOccasions(persons);
+  const birthdayKeys = new Set(
+    birthdayOccasions.map(
+      (occ) => `${_normalizeText(occ.person)}|${_toInputDate(occ.date)}`,
+    ),
+  );
+
+  const baseOccasions = (dbOccasions || []).filter((occ) => {
+    if (!isBirthdayOccasion(occ)) return true;
+
+    const personKey = _normalizeText(occ?.person);
+    const dateKey = _toInputDate(occ?.date);
+    const hasDate = !!dateKey;
+
+    if (!personKey && !hasDate) return false;
+
+    const duplicateKey = `${personKey}|${dateKey}`;
+    return !birthdayKeys.has(duplicateKey);
+  });
+
+  return [...baseOccasions, ...birthdayOccasions];
+}
+
+async function reloadOccasionData() {
+  const [loadedOccasions, loadedPersons] = await Promise.all([
+    listOccasions(),
+    getPersonsList().catch((err) => {
+      console.warn("Fehler beim Laden von Personen:", err);
+      return [];
+    }),
+  ]);
+
+  allPersons = loadedPersons || [];
+  allOccasions = mergeOccasionsWithBirthdays(loadedOccasions || [], allPersons);
+}
+
+function getPersonById(personId) {
+  return allPersons.find((person) => person.id === personId) || null;
+}
+
+async function updatePersonBirthday(personId, birthday) {
+  const person = getPersonById(personId);
+  if (!person) throw new Error("Zugehoerige Person wurde nicht gefunden.");
+
+  await updatePerson(person.id, {
+    name: String(person.name || ""),
+    birthday: birthday || "",
+    info: person.info || "",
+  });
+}
+
+async function deleteOccasionOrBirthday(occasion) {
+  if (!occasion?.id) throw new Error("ID fehlt.");
+  if (isPersonBirthdayOccasion(occasion)) {
+    await updatePersonBirthday(occasion._personId, "");
+    return;
+  }
+  await deleteOccasion(occasion.id);
 }
 
 // ---------- Event Listener Helpers ----------
@@ -199,7 +313,7 @@ export async function render(container, ctx) {
 
   try {
     if (USE_FIREBASE_AUTH && isAuthed()) await ensureDefaultOccasions();
-    allOccasions = await listOccasions();
+    await reloadOccasionData();
   } catch (err) {
     console.warn("Fehler beim Laden von Anlässen:", err);
     container.innerHTML = `
@@ -209,13 +323,6 @@ export async function render(container, ctx) {
       </div>
     `;
     return;
-  }
-
-  try {
-    allPersons = await getPersonsList();
-  } catch (err) {
-    console.warn("Fehler beim Laden von Personen:", err);
-    allPersons = [];
   }
 
   filteredOccasions = [...allOccasions];
@@ -298,9 +405,12 @@ function applyFilters() {
     }
 
     if (filters.timeframe !== "all") {
-      const days = _daysUntil(occ.date);
-      if (days === null || days < 0 || days > parseInt(filters.timeframe))
+      const days = getOccasionDaysUntil(occ);
+      if (days === null) {
+        if (!isFixedOccasion(occ)) return false;
+      } else if (days < 0 || days > parseInt(filters.timeframe)) {
         return false;
+      }
     }
 
     if (filters.type !== "all") {
@@ -333,15 +443,15 @@ function renderList() {
   }
 
   const sorted = [...filteredOccasions].sort((a, b) => {
-    const da = _asDate(a.date) || new Date("9999-12-31");
-    const db = _asDate(b.date) || new Date("9999-12-31");
+    const da = getOccasionSortDate(a) || new Date("9999-12-31");
+    const db = getOccasionSortDate(b) || new Date("9999-12-31");
     return da - db;
   });
 
   const cards = sorted
     .map((occ) => {
       const isFixed = isFixedOccasion(occ);
-      const daysUntil = _daysUntil(occ.date);
+      const daysUntil = getOccasionDaysUntil(occ);
       const statusBadge = occ.isActive ? "success" : "secondary";
       const statusText = occ.isActive ? "Aktiv" : "Deaktiviert";
 
@@ -426,22 +536,12 @@ function renderList() {
             </div>
 
             <div class="d-flex gap-2 mt-3">
-              ${
-                isFixed
-                  ? `
-                <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled>
-                  <i class="bi bi-lock"></i> Fest (nicht bearbeitbar)
-                </button>
-              `
-                  : `
-                <button class="btn btn-sm btn-outline-primary edit-btn flex-grow-1">
-                  <i class="bi bi-pencil"></i> Bearbeiten
-                </button>
-                <button class="btn btn-sm btn-outline-danger delete-btn">
-                  <i class="bi bi-trash"></i>
-                </button>
-              `
-              }
+              <button class="btn btn-sm btn-outline-primary edit-btn flex-grow-1">
+                <i class="bi bi-pencil"></i> Bearbeiten
+              </button>
+              <button class="btn btn-sm btn-outline-danger delete-btn">
+                <i class="bi bi-trash"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -466,15 +566,19 @@ function renderForm() {
 
   const isEdit = mode === "edit";
   const item = isEdit ? allOccasions.find((o) => o.id === editingId) : null;
+  const isPersonBirthday = isPersonBirthdayOccasion(item);
   const title = isEdit ? "Anlass bearbeiten" : "Neuer Anlass";
   const selectedPreset = item
-    ? FIXED_OCCASION_PRESETS.includes(String(item.name || "").trim())
+    ? isPersonBirthday
+      ? "Geburtstag"
+      : FIXED_OCCASION_PRESETS.includes(String(item.name || "").trim())
       ? String(item.name || "").trim()
       : "__custom__"
     : "";
   const customNameDefault =
     item && selectedPreset === "__custom__" ? String(item.name || "") : "";
   const customNameHidden = selectedPreset === "__custom__" ? "" : "d-none";
+  const personBirthdayLockedAttr = isPersonBirthday ? "disabled" : "";
 
   formDiv.innerHTML = `
     <div class="card">
@@ -488,7 +592,7 @@ function renderForm() {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Name <span class="text-danger">*</span></label>
-              <select id="formNamePreset" class="form-select" required>
+              <select id="formNamePreset" class="form-select" required ${personBirthdayLockedAttr}>
                 <option value="" ${!selectedPreset ? "selected" : ""}>Bitte wählen...</option>
                 ${FIXED_OCCASION_PRESETS.map(
                   (name) => `
@@ -521,7 +625,7 @@ function renderForm() {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Person (optional)</label>
-              <select id="formPerson" class="form-select">
+              <select id="formPerson" class="form-select" ${personBirthdayLockedAttr}>
                 <option value="">Keine spezifische Person</option>
                 ${allPersons
                   .map(
@@ -537,7 +641,7 @@ function renderForm() {
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Status</label>
-              <select id="formStatus" class="form-select">
+              <select id="formStatus" class="form-select" ${personBirthdayLockedAttr}>
                 <option value="true"  ${item && item.isActive !== false ? "selected" : ""}>Aktiv</option>
                 <option value="false" ${item && item.isActive === false ? "selected" : ""}>Deaktiviert</option>
               </select>
@@ -546,8 +650,17 @@ function renderForm() {
 
           <div class="mb-3">
             <label class="form-label">Zusätzliche Informationen</label>
-            <textarea id="formInfo" class="form-control" rows="3"
+            <textarea id="formInfo" class="form-control" rows="3" ${personBirthdayLockedAttr}
                       placeholder="Optional: Weitere Details zum Anlass">${item ? item.info || "" : ""}</textarea>
+            ${
+              isPersonBirthday
+                ? `
+              <div class="form-text">
+                Dieser Geburtstag wird aus der Person abgeleitet. Bearbeitbar ist hier das Datum.
+              </div>
+            `
+                : ""
+            }
           </div>
 
           <div class="d-flex gap-2">
@@ -602,28 +715,29 @@ function attachEventListeners(ctx) {
     filters.search = e.target.value;
     applyFilters();
     renderList();
-    attachListListeners();
+    attachListListeners(ctx);
   });
 
   addListener(document.getElementById("filterTimeframe"), "change", (e) => {
     filters.timeframe = e.target.value;
     applyFilters();
     renderList();
-    attachListListeners();
+    attachListListeners(ctx);
   });
+
 
   addListener(document.getElementById("filterType"), "change", (e) => {
     filters.type = e.target.value;
     applyFilters();
     renderList();
-    attachListListeners();
+    attachListListeners(ctx);
   });
 
   addListener(document.getElementById("filterStatus"), "change", (e) => {
     filters.status = e.target.value;
     applyFilters();
     renderList();
-    attachListListeners();
+    attachListListeners(ctx);
   });
 
   // "Neu"-Button
@@ -652,6 +766,12 @@ function attachEventListeners(ctx) {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
 
     try {
+      const currentItem =
+        mode === "edit" && editingId
+          ? allOccasions.find((o) => o.id === editingId)
+          : null;
+      const isEditingPersonBirthday = isPersonBirthdayOccasion(currentItem);
+
       const selected = document.getElementById("formNamePreset")?.value || "";
       const isCustomName = selected === "__custom__";
       const name = isCustomName
@@ -671,19 +791,23 @@ function attachEventListeners(ctx) {
       }
 
       if (mode === "edit" && editingId) {
-        await updateOccasion(editingId, {
-          name,
-          date,
-          person,
-          type,
-          info,
-          isActive,
-        });
+        if (isEditingPersonBirthday) {
+          await updatePersonBirthday(currentItem._personId, date);
+        } else {
+          await updateOccasion(editingId, {
+            name,
+            date,
+            person,
+            type,
+            info,
+            isActive,
+          });
+        }
       } else {
         await createOccasion({ name, date, person, type, info, isActive });
       }
 
-      allOccasions = await listOccasions();
+      await reloadOccasionData();
       mode = "none";
       editingId = null;
 
@@ -712,14 +836,15 @@ function attachEventListeners(ctx) {
     if (!shouldDelete) return;
 
     const user = await waitForUserOnce();
+
     if (!user) {
       window.location.href = "./login.html";
       return;
     }
 
     try {
-      await deleteOccasion(editingId);
-      allOccasions = await listOccasions();
+      await deleteOccasionOrBirthday(item);
+      await reloadOccasionData();
       mode = "none";
       editingId = null;
 
@@ -733,10 +858,10 @@ function attachEventListeners(ctx) {
     }
   });
 
-  attachListListeners();
+  attachListListeners(ctx);
 }
 
-function attachListListeners() {
+function attachListListeners(ctx) {
   // Bearbeiten
   document.querySelectorAll("#listContainer .edit-btn").forEach((btn) => {
     addListener(btn, "click", (e) => {
@@ -745,7 +870,7 @@ function attachListListeners() {
       mode = "edit";
       renderForm();
       window.scrollTo(0, 0);
-      attachEventListeners();
+      attachEventListeners(ctx);
     });
   });
 
@@ -766,11 +891,11 @@ function attachListListeners() {
       }
 
       try {
-        await deleteOccasion(id);
-        allOccasions = await listOccasions();
+        await deleteOccasionOrBirthday(occ);
+        await reloadOccasionData();
         applyFilters();
         renderList();
-        attachListListeners();
+        attachListListeners(ctx);
       } catch (err) {
         console.error(err);
         alert("Fehler: " + err.message);
