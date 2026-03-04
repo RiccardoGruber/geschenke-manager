@@ -379,6 +379,7 @@ async function handleGenerateIdeasFromSuggestions() {
   }
 
   const sourceIdeas = ideas.filter((i) => i.personId === personId);
+  const sourceExistingGifts = gifts.filter((g) => g.personId === personId);
   const sourcePastGifts = getPastDisplayGifts().filter(
     (g) => g.personId === personId,
   );
@@ -386,6 +387,7 @@ async function handleGenerateIdeasFromSuggestions() {
   const generated = generateIdeasForPerson({
     personId,
     personName,
+    existingGifts: sourceExistingGifts,
     pastGifts: sourcePastGifts,
     existingIdeas: sourceIdeas,
   });
@@ -595,6 +597,14 @@ function clearGeneratedSuggestions() {
   selectedGeneratedSuggestionIds = new Set();
 }
 
+function updateGeneratedAdoptButton() {
+  const adoptBtn = document.getElementById("adoptGeneratedBtn");
+  if (!adoptBtn) return;
+  const selectedCount = selectedGeneratedSuggestionIds.size;
+  adoptBtn.disabled = selectedCount === 0;
+  adoptBtn.innerHTML = `<i class="bi bi-download"></i> Ausgewählte übernehmen (${selectedCount})`;
+}
+
 function buildGeneratedSuggestionId(suggestion, idx) {
   const base = String(suggestion?.content || suggestion?.title || "idee")
     .replace(/\s+/g, "-")
@@ -621,7 +631,7 @@ function renderGeneratedSuggestionsPanel() {
         <input class="form-check-input mt-1 generated-suggestion-check" type="checkbox" data-suggestion-id="${s._id}" ${checked}>
         <div class="flex-grow-1">
           <div class="fw-semibold">${s.title || s.content || "Vorschlag"}</div>
-          <div class="small text-muted">${s.reason || "Automatisch generiert"}</div>
+          <div class="small text-muted">Aus bekannten Geschenken generiert.</div>
         </div>
       </div>
     `;
@@ -2008,9 +2018,7 @@ function attachListListeners() {
         if (!id) return;
         if (e.currentTarget.checked) selectedGeneratedSuggestionIds.add(id);
         else selectedGeneratedSuggestionIds.delete(id);
-        const adoptBtn = document.getElementById("adoptGeneratedBtn");
-        if (adoptBtn)
-          adoptBtn.disabled = selectedGeneratedSuggestionIds.size === 0;
+        updateGeneratedAdoptButton();
       });
     });
 

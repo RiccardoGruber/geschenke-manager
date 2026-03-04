@@ -13,132 +13,178 @@ function normalize(s) {
     .toLowerCase();
 }
 
-function tokenize(text) {
-  const t = normalize(text);
-  if (!t) return [];
-  return t
-    .replace(/[^a-zäöüß0-9\s-]/gi, " ")
-    .split(/\s+/)
-    .map((x) => x.trim())
-    .filter((x) => x.length >= 3);
+function sanitizeSourceText(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function topKeywordsFromPast(pastGifts, max = 6) {
+function collectSourceNames({ pastGifts = [], existingGifts = [], existingIdeas = [] }) {
   const freq = new Map();
 
+  const addName = (raw) => {
+    const name = sanitizeSourceText(raw);
+    if (!name) return;
+
+    const key = normalize(name);
+    const existing = freq.get(key);
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+
+    freq.set(key, { name, count: 1 });
+  };
+
   for (const g of pastGifts || []) {
-    const note = g.note || "";
-    tokenize(note).forEach((w) => {
-      freq.set(w, (freq.get(w) || 0) + 1);
-    });
+    addName(g?.giftName || g?.content || "");
   }
 
-  const sorted = [...freq.entries()].sort((a, b) => b[1] - a[1]);
-  return sorted.slice(0, max).map(([word, count]) => ({ word, count }));
+  for (const g of existingGifts || []) {
+    addName(g?.giftName || g?.content || "");
+  }
+
+  for (const idea of existingIdeas || []) {
+    addName(idea?.giftName || idea?.content || "");
+  }
+
+  return [...freq.values()].sort((a, b) => b.count - a.count);
 }
 
 function existingIdeaContains(existingIdeas, keyword) {
   const k = normalize(keyword);
-  return (existingIdeas || []).some((i) => normalize(i.content).includes(k));
+  if (!k) return false;
+  return (existingIdeas || []).some((i) => {
+    const text = normalize(i?.giftName || i?.content || "");
+    return text.includes(k);
+  });
+}
+
+function buildSuggestion({ content, personId, personName, reason }) {
+  return {
+    title: content,
+    content,
+    type: "text",
+    status: "offen",
+    occasionId: "",
+    occasionName: "",
+    personId,
+    personName,
+    reason,
+  };
+}
+
+function pushIfNew({ suggestions, existingIdeas, content, personId, personName, reason }) {
+  if (!content) return;
+
+  const normalizedContent = normalize(content);
+  const alreadyGenerated = suggestions.some(
+    (s) => normalize(s?.content || s?.title || "") === normalizedContent,
+  );
+  if (alreadyGenerated) return;
+
+  if (existingIdeaContains(existingIdeas, normalizedContent)) return;
+
+  suggestions.push(
+    buildSuggestion({ content, personId, personName, reason }),
+  );
+}
+
+function buildSuggestionsFromSources({ personId, personName, existingIdeas, sourceNames }) {
+  const suggestions = [];
+
+  for (const { name, count } of sourceNames) {
+    const reason = `Automatisch generiert: basiert auf vorhandenen Daten zu "${name}" (${count}x).`;
+
+    pushIfNew({
+      suggestions,
+      existingIdeas,
+      content: `Zubehör zu ${name}`,
+      personId,
+      personName,
+      reason,
+    });
+
+    pushIfNew({
+      suggestions,
+      existingIdeas,
+      content: `Upgrade von ${name}`,
+      personId,
+      personName,
+      reason,
+    });
+
+    if (suggestions.length >= 12) break;
+  }
+
+  return suggestions.slice(0, 12);
 }
 
 /**
- * Helper: erzeugt mehrere Vorschläge aus einer "Kategorie + Liste".
- * Beispiel:
- *  category="Erlebnis"
- *  items=["Essen gehen","Kino","Kurztrip","Massage"]
- * -> liefert 4 einzelne Suggestions
+ * Helper: erzeugt mehrere Vorschäge aus einer "Kategorie + Liste".
  */
-function makeListSuggestions({
-  category,
-  items,
-  personId,
-  personName,
-  reason,
-}) {
+function makeListSuggestions({ items, personId, personName, reason }) {
   return (items || [])
     .map((x) => String(x || "").trim())
     .filter(Boolean)
-    .map((item) => ({
-      title: item,
-      content: item, // wird übernommen als GiftIdea.content
-      type: "text",
-      status: "offen",
-      occasionId: "",
-      occasionName: "",
-      personId,
-      personName,
-      reason: reason || `Fallback: Kategorie "${category}".`,
-    }));
+    .map((item) =>
+      buildSuggestion({
+        content: item,
+        personId,
+        personName,
+        reason,
+      }),
+    );
 }
 
 /**
- * generateIdeasForPerson({ personId, personName, pastGifts, existingIdeas })
+ * generateIdeasForPerson({ personId, personName, pastGifts, existingGifts, existingIdeas })
  */
 export function generateIdeasForPerson({
   personId,
   personName,
   pastGifts,
+  existingGifts,
   existingIdeas,
 }) {
-  const suggestions = [];
+  const sourceNames = collectSourceNames({
+    pastGifts,
+    existingGifts,
+    existingIdeas,
+  });
 
-  // 1) Keywords aus vergangenen Geschenken (aus Notiz-Feld)
-  const top = topKeywordsFromPast(pastGifts, 8);
+  const fromSourceData = buildSuggestionsFromSources({
+    personId,
+    personName,
+    existingIdeas,
+    sourceNames,
+  });
 
-  for (const { word, count } of top) {
-    if (existingIdeaContains(existingIdeas, word)) continue;
+  if (fromSourceData.length > 0) return fromSourceData;
 
-    suggestions.push({
-      title: word,
-      content: `${word}`,
-      type: "text",
-      status: "offen",
-      occasionId: "",
-      occasionName: "",
+  const fallbackReason =
+    "Es gibt noch keine Daten zu bestehenden oder vergangenen Geschenken bzw. Ideen für diese Person. Deshalb werden allgemeine Ideen vorgeschlagen.";
+
+  const fallbackBlocks = [
+    ["Lieblingsladen Gutschein", "Restaurant Gutschein", "Drogerie Gutschein"],
+    ["Essen gehen", "Kinoabend", "Kurztrip"],
+    ["Fotobuch", "Gravur Geschenk", "Erinnerungsbox"],
+  ];
+
+  const fallbackSuggestions = [];
+  for (const block of fallbackBlocks) {
+    for (const sug of makeListSuggestions({
+      items: block,
       personId,
       personName,
-      reason: `Automatisch generiert: "${word}" kam in vergangenen Geschenken ${count}× vor.`,
-    });
-  }
-
-  // 2) Fallback: wenn (noch) zu wenig Daten vorhanden sind
-  if (suggestions.length === 0) {
-    const fallbackBlocks = [
-      {
-        category: "Gutschein",
-        items: ["Lieblingsladen", "Amazon", "Drogerie", "Restaurant"],
-        reason:
-          "Fallback: Zu wenig vergangene Daten – Gutschein-Ideen als Start.",
-      },
-      {
-        category: "Erlebnis",
-        items: ["Essen gehen", "Kino", "Kurztrip", "Massage"],
-        reason:
-          "Fallback: Zu wenig vergangene Daten – Erlebnis-Ideen als Start.",
-      },
-      {
-        category: "Personalisiert",
-        items: ["Fotobuch", "Gravur", "Custom Tasse", "Erinnerungsbox"],
-        reason:
-          "Fallback: Zu wenig vergangene Daten – personalisierte Ideen als Start.",
-      },
-    ];
-
-    for (const block of fallbackBlocks) {
-      for (const sug of makeListSuggestions({
-        category: block.category,
-        items: block.items,
-        personId,
-        personName,
-        reason: block.reason,
-      })) {
-        if (existingIdeaContains(existingIdeas, sug.content)) continue;
-        suggestions.push(sug);
-      }
+      reason: fallbackReason,
+    })) {
+      if (existingIdeaContains(existingIdeas, sug.content)) continue;
+      fallbackSuggestions.push(sug);
+      if (fallbackSuggestions.length >= 12) break;
     }
+    if (fallbackSuggestions.length >= 12) break;
   }
 
-  // 3) Max 12 Vorschläge
-  return suggestions.slice(0, 12);
+  return fallbackSuggestions.slice(0, 12);
 }
