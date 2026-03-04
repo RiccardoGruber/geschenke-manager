@@ -80,7 +80,7 @@ function showDeleteConfirmModal(itemLabel = "") {
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
         <div class="occasion-delete-modal-body">
-          <p class="mb-2">Moechtest du diesen Eintrag wirklich löschen?</p>
+          <p class="mb-2">Möchtest du diesen Eintrag wirklich löschen?</p>
           <p class="mb-0 text-muted small occasion-delete-modal-name"></p>
         </div>
         <div class="occasion-delete-modal-actions">
@@ -139,15 +139,15 @@ function showDeleteConfirmModal(itemLabel = "") {
 function getDeleteFailedMessage(err, label = "Der Eintrag") {
   const raw = String(err?.message || err || "").toLowerCase();
   if (raw.includes("permission") || raw.includes("unauthorized")) {
-    return `${label} konnte nicht geloescht werden. Es fehlen Berechtigungen.`;
+    return `${label} konnte nicht gelöscht werden. Es fehlen Berechtigungen.`;
   }
   if (raw.includes("kein eingeloggter benutzer") || raw.includes("auth")) {
-    return `${label} konnte nicht geloescht werden. Bitte erneut einloggen.`;
+    return `${label} konnte nicht gelöscht werden. Bitte erneut einloggen.`;
   }
   if (raw.includes("id fehlt")) {
-    return `${label} konnte nicht geloescht werden. Die ID fehlt.`;
+    return `${label} konnte nicht gelöscht werden. Die ID fehlt.`;
   }
-  return `${label} konnte nicht geloescht werden: ${err?.message || err}`;
+  return `${label} konnte nicht gelöscht werden: ${err?.message || err}`;
 }
 
 function showPersonSharePickerModal() {
@@ -160,7 +160,7 @@ function showPersonSharePickerModal() {
       <div class="occasion-delete-modal" role="dialog" aria-modal="true" aria-labelledby="sharePersonPickerTitle" tabindex="-1">
         <div class="occasion-delete-modal-header">
           <h5 id="sharePersonPickerTitle" class="mb-0">
-            <i class="bi bi-people text-primary"></i> Person fuer Share-Link wählen
+            <i class="bi bi-people text-primary"></i> Person für Share-Link wählen
           </h5>
           <button type="button" class="btn-close" aria-label="Schliessen"></button>
         </div>
@@ -713,6 +713,12 @@ function getPlannedDisplayGifts() {
   return gifts.filter((gift) => !isDateInPast(gift?.date));
 }
 
+function getDisplayItemsForTab(tab = currentTab) {
+  if (tab === "gifts") return getPlannedDisplayGifts();
+  if (tab === "ideas") return ideas;
+  return getPastDisplayGifts();
+}
+
 async function loadData() {
   showLoading(true);
   try {
@@ -877,12 +883,7 @@ function renderFilters(container) {
 
 function renderList() {
   const listDiv = document.getElementById("listContainer");
-  const source =
-    currentTab === "gifts"
-      ? getPlannedDisplayGifts()
-      : currentTab === "ideas"
-        ? ideas
-        : getPastDisplayGifts();
+  const source = getDisplayItemsForTab(currentTab);
   const src = applyFilters(source);
   const suggestionsPanel = renderGeneratedSuggestionsPanel();
   const sectionTitle =
@@ -1109,6 +1110,16 @@ function renderIdeaCard(item) {
                 <span class="fw-semibold">Datum:</span>
                 <span>${formatDisplayDate(item.date)}</span>
               </div>
+              ${
+                isDateInPast(item.date)
+                  ? `
+                <div class="gift-meta-item text-warning">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  <span>Die Idee liegt in der Vergangenheit.</span>
+                </div>
+              `
+                  : ""
+              }
             `
                 : ""
             }
@@ -1183,6 +1194,15 @@ function renderPastGiftCard(item) {
             `
                 : ""
             }
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-sm btn-outline-primary edit-btn flex-grow-1">
+              <i class="bi bi-pencil"></i> Bearbeiten
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-btn">
+              <i class="bi bi-trash"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -1279,11 +1299,17 @@ function renderConvertForm(formDiv) {
 function renderEntityForm(formDiv) {
   const isEdit = formMode === "edit";
   const item = isEdit
-    ? currentTab === "gifts"
-      ? gifts.find((g) => g.id === editingItem)
-      : ideas.find((i) => i.id === editingItem)
+    ? getDisplayItemsForTab(currentTab).find(
+        (entry) => entry.id === editingItem,
+      )
     : null;
-  const title = `${isEdit ? "Bearbeiten" : "Neu"}: ${currentTab === "gifts" ? "Geschenk" : "Geschenkidee"}`;
+  const title = `${isEdit ? "Bearbeiten" : "Neu"}: ${
+    currentTab === "gifts"
+      ? "Geschenk"
+      : currentTab === "past"
+        ? "Vergangenes Geschenk"
+        : "Geschenkidee"
+  }`;
   const customOccasions = getDeduplicatedOccasions();
 
   formDiv.innerHTML = `
@@ -1336,7 +1362,7 @@ function renderEntityForm(formDiv) {
                 `
                     : ""
                 }
-                <option value="__custom__">âž• Individueller Anlass...</option>
+                <option value="__custom__"> + Individueller Anlass...</option>
               </select>
             </div>
 
@@ -1399,6 +1425,18 @@ function renderEntityForm(formDiv) {
         ideaDateInput.showPicker?.(),
       );
     }
+
+    const ideaDateWarning = document.getElementById("formIdeaDateWarning");
+    const updateIdeaDateWarning = () => {
+      if (!ideaDateWarning) return;
+      ideaDateWarning.classList.toggle(
+        "d-none",
+        !isDateInPast(ideaDateInput?.value),
+      );
+    };
+    updateIdeaDateWarning();
+    ideaDateInput?.addEventListener("input", updateIdeaDateWarning);
+    ideaDateInput?.addEventListener("change", updateIdeaDateWarning);
   }
 }
 
@@ -1437,6 +1475,9 @@ function renderIdeaFormFields(item) {
         <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
       </div>
       <small class="text-muted">Wird beim Konvertieren als Geschenkdatum vorgeschlagen.</small>
+      <small id="formIdeaDateWarning" class="text-warning d-block mt-1 ${isDateInPast(ideaDate) ? "" : "d-none"}">
+        <i class="bi bi-exclamation-triangle"></i> Die Idee liegt in der Vergangenheit.
+      </small>
     </div>
 
     <div class="mb-3">
@@ -1465,12 +1506,13 @@ function renderIdeaFormFields(item) {
 }
 function renderGiftFormFields(item) {
   const media = parseGiftNoteMedia(item?.note || "");
+  const requiresGiftName = currentTab !== "past";
 
   return `
     <div class="mb-3">
-      <label class="form-label">Name des Geschenks <span class="text-danger">*</span></label>
+      <label class="form-label">Name des Geschenks ${requiresGiftName ? '<span class="text-danger">*</span>' : ""}</label>
       <input type="text" id="formGiftName" class="form-control"
-             value="${item ? item.giftName || "" : ""}" required
+             value="${item ? item.giftName || "" : ""}" ${requiresGiftName ? "required" : ""}
              placeholder="z.B. Amazon Gutschein, Buch 'Die Säulen der Erde'">
     </div>
 
@@ -1678,6 +1720,7 @@ async function handleFormSubmit(e, ctx) {
   btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Speichere...';
 
   try {
+    let movedPastGiftToActive = false;
     const personId = document.getElementById("formPerson").value;
     const personName = persons.find((p) => p.id === personId)?.name || "";
 
@@ -1707,11 +1750,12 @@ async function handleFormSubmit(e, ctx) {
     if (linkUrl && !isHttpUrl(linkUrl))
       throw new Error("Link-URL muss mit http:// oder https:// beginnen.");
 
-    if (currentTab === "gifts") {
+    if (currentTab === "gifts" || currentTab === "past") {
+      const isPastTab = currentTab === "past";
       const date = document.getElementById("formDate").value;
       const noteWithMedia = buildGiftNoteWithMedia(note, imageUrl, linkUrl);
 
-      if (!personId || !date || !giftName) {
+      if (!personId || !date || (!isPastTab && !giftName)) {
         alert("Person, Name und Datum sind erforderlich");
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-circle"></i> Speichern';
@@ -1719,7 +1763,7 @@ async function handleFormSubmit(e, ctx) {
       }
 
       if (formMode === "edit" && editingItem) {
-        await updateGift(editingItem, {
+        const patch = {
           personId,
           personName,
           occasionId,
@@ -1728,8 +1772,33 @@ async function handleFormSubmit(e, ctx) {
           date,
           note: noteWithMedia,
           status,
-        });
+        };
+
+        if (isPastTab) {
+          const isExplicitPastGift = pastGifts.some(
+            (g) => g.id === editingItem,
+          );
+          const targetKind = isExplicitPastGift
+            ? isDateInPast(date)
+              ? "past"
+              : "planned"
+            : null;
+
+          await updateGift(editingItem, {
+            ...patch,
+            ...(targetKind ? { kind: targetKind } : {}),
+          });
+
+          movedPastGiftToActive =
+            isExplicitPastGift && targetKind === "planned";
+        } else {
+          await updateGift(editingItem, patch);
+        }
       } else {
+        if (isPastTab)
+          throw new Error(
+          "Vergangene Geschenke können nur bearbeitet werden.",
+          );
         await createGift({
           personId,
           personName,
@@ -1800,6 +1869,12 @@ async function handleFormSubmit(e, ctx) {
     }
 
     await loadData();
+    if (movedPastGiftToActive) {
+      currentTab = "gifts";
+      document.querySelectorAll("#giftsTabs .nav-link").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.tab === "gifts");
+      });
+    }
     formMode = "none";
     editingItem = null;
 
@@ -1863,7 +1938,7 @@ async function handleConvertSubmit(e, ctx) {
 }
 
 async function handleDelete(ctx) {
-  const source = currentTab === "gifts" ? gifts : ideas;
+  const source = getDisplayItemsForTab(currentTab);
   const item = source.find((x) => x.id === editingItem);
   const itemLabel =
     item?.giftName || item?.occasionName || item?.personName || "";
@@ -1877,8 +1952,8 @@ async function handleDelete(ctx) {
   }
 
   try {
-    if (currentTab === "gifts") await deleteGift(editingItem);
-    else await deleteGiftIdea(editingItem);
+    if (currentTab === "ideas") await deleteGiftIdea(editingItem);
+    else await deleteGift(editingItem);
 
     await loadData();
     formMode = "none";
@@ -1890,7 +1965,7 @@ async function handleDelete(ctx) {
     attachEventListeners(ctx);
   } catch (err) {
     console.error(err);
-    const label = currentTab === "gifts" ? "Das Geschenk" : "Die Geschenkidee";
+    const label = currentTab === "ideas" ? "Die Geschenkidee" : "Das Geschenk";
     alert(getDeleteFailedMessage(err, label));
   }
 }
@@ -1954,7 +2029,7 @@ function attachListListeners() {
     addListener(btn, "click", async (e) => {
       e.preventDefault();
       const id = btn.closest("[data-id]").dataset.id;
-      const source = currentTab === "gifts" ? gifts : ideas;
+      const source = getDisplayItemsForTab(currentTab);
       const item = source.find((x) => x.id === id);
       const itemLabel =
         item?.giftName || item?.occasionName || item?.personName || "";
@@ -1968,8 +2043,8 @@ function attachListListeners() {
       }
 
       try {
-        if (currentTab === "gifts") await deleteGift(id);
-        else await deleteGiftIdea(id);
+        if (currentTab === "ideas") await deleteGiftIdea(id);
+        else await deleteGift(id);
 
         await loadData();
         renderList();
@@ -1977,7 +2052,7 @@ function attachListListeners() {
       } catch (err) {
         console.error(err);
         const label =
-          currentTab === "gifts" ? "Das Geschenk" : "Die Geschenkidee";
+          currentTab === "ideas" ? "Die Geschenkidee" : "Das Geschenk";
         alert(getDeleteFailedMessage(err, label));
       }
     });

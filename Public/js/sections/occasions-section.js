@@ -33,6 +33,7 @@ let editingId = null;
 let mode = "none"; // 'none' | 'create' | 'edit'
 let eventListeners = [];
 let activeDeleteModalCleanup = null;
+let messageTimer = null;
 
 let filters = {
   search: "",
@@ -96,6 +97,11 @@ function isPersonBirthdayOccasion(occasion) {
   return occasion?._origin === "person-birthday" && !!occasion?._personId;
 }
 
+function isOccasionAssignedToPerson(occasion) {
+  if (isPersonBirthdayOccasion(occasion)) return true;
+  return !!String(occasion?.person || "").trim();
+}
+
 function getOccasionSortDate(occasion) {
   const baseDate = _asDate(occasion?.date);
   if (!baseDate) return null;
@@ -124,6 +130,11 @@ function getOccasionDaysUntil(occasion) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.floor((d - now) / (1000 * 60 * 60 * 24));
+}
+
+function isOccasionDraftInPast(name, date) {
+  const days = getOccasionDaysUntil({ name: String(name || ""), date });
+  return days !== null && days < 0;
 }
 
 function buildPersonBirthdayOccasions(persons) {
@@ -185,7 +196,7 @@ function getPersonById(personId) {
 
 async function updatePersonBirthday(personId, birthday) {
   const person = getPersonById(personId);
-  if (!person) throw new Error("Zugehoerige Person wurde nicht gefunden.");
+  if (!person) throw new Error("Zugehörige Person wurde nicht gefunden.");
 
   await updatePerson(person.id, {
     name: String(person.name || ""),
@@ -214,6 +225,46 @@ function addListener(el, evt, fn) {
 function removeAllListeners() {
   eventListeners.forEach(({ el, evt, fn }) => el.removeEventListener(evt, fn));
   eventListeners = [];
+}
+
+function showOccasionsMessage(msg, type = "success") {
+  const box = document.getElementById("occasionsMessage");
+  if (!box) return;
+  box.innerHTML = `<div class="alert alert-${type}" role="alert">${msg}</div>`;
+  if (messageTimer) clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => {
+    box.innerHTML = "";
+    messageTimer = null;
+  }, 3000);
+}
+
+function getOccasionDeleteBlockedMessage(occasion) {
+  if (!occasion) return "Der Anlass kann nicht gelöscht werden.";
+  if (isPersonBirthdayOccasion(occasion)) {
+    return "Dieser Anlass kann nicht gelöscht werden, weil er mit einer Person verknüpft ist.";
+  }
+  const personName = String(occasion.person || "").trim();
+  if (personName) {
+    return `Dieser Anlass kann nicht gelöscht werden, weil er der Person "${personName}" zugeordnet ist.`;
+  }
+  return "Der Anlass kann nicht gelöscht werden.";
+}
+
+function getDeleteFailedMessage(err) {
+  const raw = String(err?.message || err || "").toLowerCase();
+  if (raw.includes("geschenkideen oder geschenke zugeordnet")) {
+    return "Der Anlass kann nicht gelöscht werden. Es sind noch Geschenkideen oder Geschenke zugeordnet.";
+  }
+  if (raw.includes("permission") || raw.includes("unauthorized")) {
+    return "Der Anlass kann nicht gelöscht werden. Es fehlen Berechtigungen.";
+  }
+  if (raw.includes("kein eingeloggter benutzer") || raw.includes("auth")) {
+    return "Der Anlass kann nicht gelöscht werden. Bitte erneut einloggen.";
+  }
+  if (raw.includes("id fehlt")) {
+    return "Der Anlass kann nicht gelöscht werden. Die ID fehlt.";
+  }
+  return `Der Anlass kann nicht gelöscht werden: ${err?.message || err}`;
 }
 
 // ---------- Delete Confirmation Modal ----------
@@ -332,6 +383,7 @@ export async function render(container, ctx) {
   container.innerHTML = `
     <div class="occasions-manager">
       <div id="tabFilters" class="mb-3"></div>
+      <div id="occasionsMessage" class="mb-3"></div>
       <div id="formContainer" class="mb-4"></div>
       <div id="listContainer"></div>
     </div>
@@ -497,6 +549,16 @@ function renderList() {
                 <span class="fw-semibold">Datum:</span>
                 <span class="text-nowrap">${_formatDate(occ.date)}</span>
               </div>
+              ${
+                daysUntil !== null && daysUntil < 0
+                  ? `
+                <div class="occasion-meta-item text-warning">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  <span>Der Anlass liegt in der Vergangenheit.</span>
+                </div>
+              `
+                  : ""
+              }
 
               ${
                 urgencyText
@@ -572,13 +634,19 @@ function renderForm() {
     ? isPersonBirthday
       ? "Geburtstag"
       : FIXED_OCCASION_PRESETS.includes(String(item.name || "").trim())
-      ? String(item.name || "").trim()
-      : "__custom__"
+        ? String(item.name || "").trim()
+        : "__custom__"
     : "";
   const customNameDefault =
     item && selectedPreset === "__custom__" ? String(item.name || "") : "";
   const customNameHidden = selectedPreset === "__custom__" ? "" : "d-none";
   const personBirthdayLockedAttr = isPersonBirthday ? "disabled" : "";
+  const initialOccasionName =
+    selectedPreset === "__custom__" ? customNameDefault : selectedPreset;
+  const initialDateWarning = isOccasionDraftInPast(
+    initialOccasionName,
+    item ? _toInputDate(item.date) : "",
+  );
 
   formDiv.innerHTML = `
     <div class="card">
@@ -610,6 +678,9 @@ function renderForm() {
                        value="${item ? _toInputDate(item.date) : ""}" required style="cursor: pointer;">
                 <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
               </div>
+              <small id="formDateWarning" class="text-warning d-block mt-1 ${initialDateWarning ? "" : "d-none"}">
+                <i class="bi bi-exclamation-triangle"></i> Der Anlass liegt in der Vergangenheit.
+              </small>
             </div>
           </div>
 
@@ -694,16 +765,34 @@ function renderForm() {
   const namePreset = document.getElementById("formNamePreset");
   const customNameWrap = document.getElementById("customNameWrap");
   const customNameInput = document.getElementById("formCustomName");
+  const dateWarning = document.getElementById("formDateWarning");
+  const updateDateWarning = () => {
+    if (!dateWarning) return;
+    const selected = namePreset?.value || "";
+    const occasionName =
+      selected === "__custom__"
+        ? customNameInput?.value?.trim() || ""
+        : selected;
+    const isPast = isOccasionDraftInPast(occasionName, dateInput?.value || "");
+    dateWarning.classList.toggle("d-none", !isPast);
+  };
+
+  dateInput?.addEventListener("input", updateDateWarning);
+  dateInput?.addEventListener("change", updateDateWarning);
+
   if (namePreset && customNameWrap && customNameInput) {
     const syncNamePresetState = () => {
       const isCustom = namePreset.value === "__custom__";
       customNameWrap.classList.toggle("d-none", !isCustom);
       customNameInput.required = isCustom;
       if (!isCustom) customNameInput.value = "";
+      updateDateWarning();
     };
     namePreset.addEventListener("change", syncNamePresetState);
+    customNameInput.addEventListener("input", updateDateWarning);
     syncNamePresetState();
   }
+  updateDateWarning();
 }
 // ---------- Event Handlers ----------
 
@@ -724,7 +813,6 @@ function attachEventListeners(ctx) {
     renderList();
     attachListListeners(ctx);
   });
-
 
   addListener(document.getElementById("filterType"), "change", (e) => {
     filters.type = e.target.value;
@@ -832,6 +920,11 @@ function attachEventListeners(ctx) {
 
   addListener(document.getElementById("deleteBtn"), "click", async () => {
     const item = allOccasions.find((o) => o.id === editingId);
+    if (isOccasionAssignedToPerson(item)) {
+      showOccasionsMessage(getOccasionDeleteBlockedMessage(item), "warning");
+      return;
+    }
+
     const shouldDelete = await showDeleteConfirmModal(item?.name || "");
     if (!shouldDelete) return;
 
@@ -852,9 +945,10 @@ function attachEventListeners(ctx) {
       renderList();
       renderForm();
       attachEventListeners(ctx);
+      showOccasionsMessage("Anlass wurde erfolgreich gelöscht.", "success");
     } catch (err) {
       console.error(err);
-      alert("Fehler: " + err.message);
+      showOccasionsMessage(getDeleteFailedMessage(err), "danger");
     }
   });
 
@@ -881,6 +975,10 @@ function attachListListeners(ctx) {
 
       const id = btn.closest("[data-id]").dataset.id;
       const occ = allOccasions.find((o) => o.id === id);
+      if (isOccasionAssignedToPerson(occ)) {
+        showOccasionsMessage(getOccasionDeleteBlockedMessage(occ), "warning");
+        return;
+      }
       const shouldDelete = await showDeleteConfirmModal(occ?.name || "");
       if (!shouldDelete) return;
 
@@ -896,9 +994,10 @@ function attachListListeners(ctx) {
         applyFilters();
         renderList();
         attachListListeners(ctx);
+        showOccasionsMessage("Anlass wurde erfolgreich gelöscht.", "success");
       } catch (err) {
         console.error(err);
-        alert("Fehler: " + err.message);
+        showOccasionsMessage(getDeleteFailedMessage(err), "danger");
       }
     });
   });
@@ -908,6 +1007,10 @@ function attachListListeners(ctx) {
 
 export function destroy() {
   if (activeDeleteModalCleanup) activeDeleteModalCleanup(false);
+  if (messageTimer) {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+  }
   removeAllListeners();
   allOccasions = [];
   filteredOccasions = [];

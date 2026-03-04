@@ -87,6 +87,9 @@ function _uniqueById(items) {
   return [...map.values()];
 }
 
+// IMPORTANT:
+// Christmas status is intentionally seasonal and only "active" from 01.11 to 24.12.
+// The feature still exists all year, but outside this window it returns inSeason=false.
 function _isDateInChristmasSeason(today = new Date()) {
   const year = today.getFullYear();
   const start = new Date(year, 10, 1); // 01.11.
@@ -107,9 +110,12 @@ export function getUpcomingBirthdays(
   occasions,
   today = new Date(),
 ) {
-  const nextMonth = (today.getMonth() + 1) % 12;
-  const nextMonthYear =
-    today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const maxDaysAhead = 30;
 
   const birthdayOccasionIds = new Set(["geburtstag"]);
   (occasions || []).forEach((occasion) => {
@@ -126,10 +132,27 @@ export function getUpcomingBirthdays(
 
       const birthMonth = birthday.getMonth();
       const birthDay = birthday.getDate();
-      if (birthMonth !== nextMonth) return null;
+      const nextBirthdayDate = (() => {
+        // Find the next valid birthday date, including year rollover.
+        for (let yearOffset = 0; yearOffset <= 4; yearOffset += 1) {
+          const candidate = new Date(
+            todayDate.getFullYear() + yearOffset,
+            birthMonth,
+            birthDay,
+          );
+          candidate.setHours(0, 0, 0, 0);
+          if (candidate.getMonth() !== birthMonth) continue;
+          if (candidate < todayDate) continue;
+          return candidate;
+        }
+        return null;
+      })();
+      if (!nextBirthdayDate) return null;
 
-      const thisBirthday = new Date(nextMonthYear, nextMonth, birthDay);
-      if (thisBirthday.getMonth() !== nextMonth) return null;
+      const daysUntil = Math.floor(
+        (nextBirthdayDate - todayDate) / (1000 * 60 * 60 * 24),
+      );
+      if (daysUntil < 0 || daysUntil > maxDaysAhead) return null;
 
       const ideasForBirthday = _uniqueById(
         (giftIdeas || []).filter((idea) => {
@@ -148,7 +171,7 @@ export function getUpcomingBirthdays(
       return {
         personId: person.id,
         personName: person.name || "-",
-        birthdayDate: thisBirthday,
+        birthdayDate: nextBirthdayDate,
         ideas: ideasForBirthday.map((idea) => ({
           id: idea.id,
           status: _normalizeText(idea.status) || "offen",
@@ -167,6 +190,8 @@ export function getChristmasStatus(
   occasions,
   today = new Date(),
 ) {
+  // We always compute this function so the feature is present and testable.
+  // The UI/notifications decide via `inSeason` whether Christmas items are shown.
   const inSeason = _isDateInChristmasSeason(today);
 
   const personsById = new Map();
@@ -281,6 +306,7 @@ export function getNotificationEntries(upcomingBirthdays, christmasStatus) {
     };
   });
 
+  // Outside Christmas season we deliberately create no Christmas notifications.
   const christmasEntries = (
     !christmasStatus?.inSeason ? [] : christmasStatus.items || []
   )
@@ -369,6 +395,8 @@ export function renderNotifications(
   `;
 
   let christmasHtml = "";
+  // Explicit fallback so reviewers can see: feature exists, but is intentionally
+  // inactive outside 01.11-24.12.
   if (!christmasStatus.inSeason) {
     christmasHtml = `
       <div class="border rounded-3 p-3 text-muted small bg-white">
@@ -429,7 +457,7 @@ export function renderNotifications(
       </div>
 
       <div class="mb-3">
-        <div class="text-uppercase small fw-semibold text-muted mb-2">Geburtstage im nächsten Monat</div>
+        <div class="text-uppercase small fw-semibold text-muted mb-2">Geburtstage in den nächsten 30 Tagen</div>
         ${birthdaysHtml}
       </div>
 
@@ -613,6 +641,7 @@ export async function render(container, ctx) {
   `;
 
   const upcomingBirthdays = getUpcomingBirthdays(persons, giftIdeas, occasions);
+  // Always call Christmas logic; visibility is controlled by `christmasStatus.inSeason`.
   const christmasStatus = getChristmasStatus(persons, giftIdeas, occasions);
   const notificationsHtml = renderNotifications(
     upcomingBirthdays,

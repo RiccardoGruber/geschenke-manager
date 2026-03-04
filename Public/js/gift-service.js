@@ -88,6 +88,20 @@ function isValidDateYYYYMMDD(date) {
   return !isNaN(d.getTime());
 }
 
+function isDateInPast(date) {
+  const s = normalizeString(date);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  d.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return d < today;
+}
+
 function effectiveKind(docData) {
   // alte docs ohne kind => planned
   return normalizeString(docData?.kind) || "planned";
@@ -346,7 +360,12 @@ export async function updatePastGift(id, patch = {}) {
     allowed.status = patch.status;
   }
 
-  await updateGift(id, { ...allowed, kind: "past" });
+  const nextKind =
+    allowed.date !== undefined && !isDateInPast(allowed.date)
+      ? "planned"
+      : "past";
+
+  await updateGift(id, { ...allowed, kind: nextKind });
 }
 
 /**

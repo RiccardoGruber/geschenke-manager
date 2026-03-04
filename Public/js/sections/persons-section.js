@@ -85,7 +85,7 @@ function formatDisplayDate(value) {
 
 function formatStatus(status) {
   const s = normalizeStatus(status);
-  if (s === "ueberreicht") return "Ueberreicht";
+  if (s === "ueberreicht") return "Überreicht";
   if (s === "erledigt") return "Erledigt";
   if (s === "besorgt") return "Besorgt";
   return "Offen";
@@ -714,11 +714,11 @@ function attachEventListeners(ctx) {
       renderPersonsList();
       if (deletedPastCount > 0) {
         showPersonsMessage(
-          `Person und ${deletedPastCount} vergangene Geschenke wurden erfolgreich gel�scht.`,
+          `Person und ${deletedPastCount} vergangene Geschenke wurden erfolgreich gelöscht.`,
           "success",
         );
       } else {
-        showPersonsMessage("Person wurde erfolgreich gel�scht.", "success");
+        showPersonsMessage("Person wurde erfolgreich gelöscht.", "success");
       }
     } catch (err) {
       showPersonsMessage(getDeleteFailedMessage(err), "danger");
