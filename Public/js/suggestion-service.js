@@ -1,10 +1,10 @@
 /**
  * suggestion-service.js
  * -------------------------------------------------------
- * TF-50: Automatische Generierung neuer Geschenkideen
+ * TF-50: Automatic generation of new gift ideas
  *
- * -> Generiert Vorschläge "on the fly" (nicht speichern)
- * -> TF-51 übernimmt Vorschlag in echte giftIdeas Collection
+ * -> Generates suggestions "on the fly" (do not store)
+ * -> TF-51 takes a suggestion into the real giftIdeas collection
  */
 
 function normalize(s) {
@@ -121,7 +121,7 @@ function buildSuggestionsFromSources({ personId, personName, existingIdeas, sour
 }
 
 /**
- * Helper: erzeugt mehrere Vorschäge aus einer "Kategorie + Liste".
+ * Helper: creates multiple suggestions from a "category + list".
  */
 function makeListSuggestions({ items, personId, personName, reason }) {
   return (items || [])
@@ -188,3 +188,4 @@ export function generateIdeasForPerson({
 
   return fallbackSuggestions.slice(0, 12);
 }
+

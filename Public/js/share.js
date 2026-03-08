@@ -50,7 +50,7 @@ function getTokenFromUrl() {
 
     const meta = await resolveShareToken(token);
 
-    // TF-47: Inhalte sichtbar
+    // TF-47: Content visible
     if (meta.kind === "giftIdeasByPerson") {
       headerTitle.textContent = `Geschenkideen für: ${meta.personName || meta.personId}`;
       render(meta.items || []);
@@ -68,7 +68,7 @@ function getTokenFromUrl() {
       return;
     }
 
-    // unbekannter Linktyp
+    // unknown link type
     setState(
       "warning",
       '<i class="bi bi-exclamation-triangle"></i> Link-Typ wird nicht unterstützt.',
@@ -77,9 +77,10 @@ function getTokenFromUrl() {
   } catch (e) {
     console.error(e);
 
-    // TF-48: saubere Fehlermeldung
+    // TF-48: clean error message
     const msg = e?.message || String(e);
     setState("warning", `<i class="bi bi-exclamation-triangle"></i> ${msg}`);
     clearTable();
   }
 })();
+

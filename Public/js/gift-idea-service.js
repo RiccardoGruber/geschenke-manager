@@ -1,7 +1,7 @@
 /**
  * gift-idea-service.js
  * -------------------------------------------------------
- * CRUD-Service für Geschenkideen.
+ * CRUD service for gift ideas.
  * users/{uid}/giftIdeas/{ideaId}
  */
 
@@ -53,7 +53,7 @@ function isValidType(type) {
 
 function isValidStatus(status) {
   const normalized = normalizeString(status).toLowerCase();
-  // Rückwärtskompatibel: alte Daten mit "erledigt" wie "besorgt" behandeln.
+  // Backward compatible: treat legacy data with "erledigt" like "besorgt".
   if (normalized === "erledigt") return true;
   return STATUSES.includes(normalized);
 }
@@ -202,7 +202,7 @@ export async function deleteGiftIdea(id) {
 }
 
 /**
- * Helper für TF-06: Existieren Geschenkideen für Person?
+ * Helper for TF-06: Do gift ideas exist for a person?
  */
 export async function hasGiftIdeasByPerson(personId) {
   const pid = requireNonEmpty("personId", personId);
@@ -212,7 +212,7 @@ export async function hasGiftIdeasByPerson(personId) {
   return !snap.empty;
 }
 /**
- * Helper für TF-19: Existieren Geschenkideen für Anlass?
+ * Helper for TF-19: Do gift ideas exist for an occasion?
  */
 export async function hasGiftIdeasByOccasion(occasionId) {
   const oid = requireNonEmpty("occasionId", occasionId);
@@ -221,3 +221,4 @@ export async function hasGiftIdeasByOccasion(occasionId) {
   const snap = await getDocs(q);
   return !snap.empty;
 }
+

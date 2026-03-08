@@ -19,7 +19,6 @@ import { listPersons } from "./person-service.js";
 import { listOccasions } from "./occasion-service.js";
 import { listGiftIdeas } from "./gift-idea-service.js";
 
-// Section-Map für sauberes Routing ohne If-Kette
 const SECTIONS = {
   dashboard: dashboardSection,
   persons: personsSection,
@@ -36,7 +35,6 @@ class DashboardController {
     this.currentSectionModule = null;
     this.currentParams = {};
 
-    // DOM-Referenzen cachen
     this.profileMenuToggle = document.getElementById("profileMenuToggle");
     this.dropdownMenu = document.getElementById("dropdownMenu");
     this.navButtons = document.querySelectorAll(".nav-btn");
@@ -180,12 +178,10 @@ class DashboardController {
   // ---- Events ----
 
   registerEventListeners() {
-    // Profil-Dropdown toggle
     this.profileMenuToggle.addEventListener("click", () => {
       this.dropdownMenu.classList.toggle("show");
     });
 
-    // Dropdown schließen bei Klick außerhalb
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".profile-dropdown")) {
         this.dropdownMenu.classList.remove("show");
@@ -205,7 +201,7 @@ class DashboardController {
       await this.handleLogout();
     });
 
-    // Profil-Einstellungen
+    // Profil settings
     this.profileSettings.addEventListener("click", (e) => {
       e.preventDefault();
       this.dropdownMenu.classList.remove("show");

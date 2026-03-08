@@ -1122,7 +1122,7 @@ body {
    GIFTS SECTION - Neue UI-Struktur
    ======================================== */
 
-/* Geschenk-Primärtitel */
+/* Primary gift title */
 .gift-primary-title {
   font-size: 1.5rem;
   font-weight: 700;
@@ -1131,7 +1131,7 @@ body {
   line-height: 1.3;
 }
 
-/* Strukturierte Meta-Liste */
+/* Structured meta list */
 .gift-meta-list {
   display: flex;
   flex-direction: column;
@@ -1156,7 +1156,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Karten-Styling mit neuem Farbschema */
+/* Card styling with new color scheme */
 .gift-card,
 .gift-idea-card {
   border: 1px solid var(--card-border);
@@ -1285,7 +1285,7 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-/* Status Badges mit besserem Kontrast */
+/* Status badges with better contrast */
 .badge {
   padding: 0.4rem 0.8rem;
   font-size: 0.75rem;
@@ -1308,7 +1308,7 @@ body {
   color: #ffffff !important;
 }
 
-/* Tabs mit besserem Kontrast */
+/* Tabs with better contrast */
 #giftsTabs {
   border-bottom: 2px solid var(--border-color);
 }
@@ -1672,7 +1672,7 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-/* Cards allgemein */
+/* Cards in general */
 .card {
   border: 1px solid var(--card-border);
   background-color: var(--card-bg);
@@ -1792,3 +1792,4 @@ body {
 }
 
 /* ========== End Dashboard Grid ========== */
+

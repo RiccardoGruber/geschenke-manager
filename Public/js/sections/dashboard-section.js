@@ -395,7 +395,6 @@ export function renderNotifications(
   `;
 
   let christmasHtml = "";
-  // Explicit fallback so reviewers can see: feature exists, but is intentionally
   // inactive outside 01.11-24.12.
   if (!christmasStatus.inSeason) {
     christmasHtml = `
@@ -641,7 +640,6 @@ export async function render(container, ctx) {
   `;
 
   const upcomingBirthdays = getUpcomingBirthdays(persons, giftIdeas, occasions);
-  // Always call Christmas logic; visibility is controlled by `christmasStatus.inSeason`.
   const christmasStatus = getChristmasStatus(persons, giftIdeas, occasions);
   const notificationsHtml = renderNotifications(
     upcomingBirthdays,

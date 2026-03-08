@@ -1,17 +1,17 @@
 /**
  * share-service.js
  * -------------------------------------------------------
- * Teilen per Link (TF-46 bis TF-48)
+ * Sharing via link (TF-46 to TF-48)
  *
  * Collection:
  *   shareLinks/{token}
  *
- * ShareLink-Dokument enthält "public snapshot" der Inhalte, damit Empfänger
- * ohne Login lesen kann (ohne eure privaten user/* Collections freizugeben).
+ * ShareLink document contains a "public snapshot" of the content so recipients
+ * can read without login (without exposing your private user/* collections).
  *
  * Kinds:
- * - "giftIdeasByPerson"  -> Snapshot: alle Ideen einer Person
- * - "giftIdea"           -> Snapshot: eine einzelne Idee
+ * - "giftIdeasByPerson"  -> Snapshot: all ideas of one person
+ * - "giftIdea"           -> Snapshot: a single idea
  */
 
 import {
@@ -90,8 +90,8 @@ function toPublicIdeaSnapshot(idea) {
 
 // ---------- API ----------
 /**
- * TF-46: Teilen-Link erstellen für ALLE Geschenkideen einer Person
- * Snapshot wird in shareLinks gespeichert.
+ * TF-46: Create share link for ALL gift ideas of one person
+ * Snapshot is stored in shareLinks.
  */
 export async function createShareLinkGiftIdeasByPerson({
   personId,
@@ -125,7 +125,7 @@ export async function createShareLinkGiftIdeasByPerson({
 }
 
 /**
- * TF-46: Teilen-Link erstellen für EINE Geschenkidee
+ * TF-46: Create share link for ONE gift idea
  */
 export async function createShareLinkGiftIdea({ ideaId, ttlDays = 30 } = {}) {
   const uid = await getUidOrThrow();
@@ -154,7 +154,7 @@ export async function createShareLinkGiftIdea({ ideaId, ttlDays = 30 } = {}) {
 }
 
 /**
- * TF-47/48: ShareToken auflösen (PUBLIC READ)
+ * TF-47/48: Resolve share token (PUBLIC READ)
  */
 export async function resolveShareToken(token) {
   const t = requireNonEmpty("token", token);
@@ -191,7 +191,7 @@ export async function resolveShareToken(token) {
 }
 
 /**
- * Optional: Link deaktivieren (Owner only; nützlich aber nicht zwingend für TF-46..48)
+ * Optional: Disable link (owner only; useful but not required for TF-46..48)
  */
 export async function deactivateShareLink(token) {
   const uid = await getUidOrThrow();
@@ -207,3 +207,4 @@ export async function deactivateShareLink(token) {
     updatedAt: serverTimestamp(),
   });
 }
+

@@ -1,7 +1,7 @@
-//damit diese Datei funktioniert
-//-> Titel umbennen in firebase-config.js
-//-> Platzhalter unten (API, usw.) mit den Daten aus der Firebase Console ersetzen
-//nur lokal anpassen und abspeichern
+﻿// To make this file work
+//-> Rename the file to firebase-config.js
+//-> Replace the placeholders below (API, etc.) with data from the Firebase Console
+//Adjust and save locally only
 
 // Import the functions you need from the SDKs you need
 // TODO: Add SDKs for Firebase products that you want to use
@@ -20,9 +20,10 @@ const firebaseConfig = {
   appId: "1:123456...",
 };
 
-// App initialisieren
+// Initialize app
 const app = initializeApp(firebaseConfig);
 
-// Services exportieren
+// Export services
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+

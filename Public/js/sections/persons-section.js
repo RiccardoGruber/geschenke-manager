@@ -1,7 +1,6 @@
 /**
  * persons-section.js
  * -------------------------------------------------------
- * Personen-Verwaltung als Kachel-Grid mit Accordion-Verhalten.
  */
 
 import {
@@ -22,7 +21,7 @@ let allGiftIdeas = [];
 let allGifts = [];
 let allPastGifts = [];
 
-let mode = "none"; // 'none' | 'create' | 'edit'
+let mode = "none";
 let editingId = null;
 let currentlyOpenPersonId = null;
 

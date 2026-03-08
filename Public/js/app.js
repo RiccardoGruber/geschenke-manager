@@ -11,7 +11,6 @@ import {
   isAuthed,
 } from "./auth-adapter.js";
 
-// Start-Logic: respect USE_FIREBASE_AUTH flag. Do not force redirect when UI-login used.
 const startApp = async () => {
   if (USE_FIREBASE_AUTH) {
     const user = await waitForUserOnce();
@@ -19,15 +18,12 @@ const startApp = async () => {
       window.location.href = "./login.html";
       return;
     }
-    // only when firebase auth is used we run connection test that writes data
     await runConnectionTest(user);
     return;
   }
 
-  // UI-login mode: optionally update status badge but don't redirect
   const authed = isAuthed();
   if (authed) {
-    // if UI shows authed, we can attempt a non-writing status
     updateStatus(true, "UI-Login aktiv (kein Firestore-Write)");
   } else {
     updateStatus(false, "Nicht eingeloggt (UI-Login)");
@@ -54,10 +50,9 @@ const updateStatus = (isOnline, message) => {
   }
 };
 
-// Verbindungstest
+// Connecntion text
 const runConnectionTest = async (user) => {
   try {
-    // Wir schreiben in 'users/{uid}/connection_tests' (nur wenn Firebase-Auth aktiv)
     await addDoc(collection(db, "users", user.uid, "connection_tests"), {
       message: "Verbindungstest erfolgreich",
       timestamp: serverTimestamp(),
@@ -72,7 +67,6 @@ const runConnectionTest = async (user) => {
   }
 };
 
-// App starten
 startApp().catch((err) => {
   updateStatus(false, "Init Fehler: " + (err?.message || err));
 });

@@ -1,16 +1,16 @@
 /**
  * gift-service.js
  * -------------------------------------------------------
- * CRUD-Service für Geschenke.
- * Speichert Daten unter:
+ * CRUD service for gifts.
+ * Stores data under:
  * users/{uid}/gifts/{giftId}
  *
- * Erweiterung: "Vergangene Geschenke" via Feld `kind`
- * - kind: "planned" (default)  -> geplante Geschenke / aus Geschenkideen
- * - kind: "past"               -> vergangene Geschenke (Historie)
+ * Extension: "past gifts" via the `kind` field
+ * - kind: "planned" (default)  -> planned gifts / from gift ideas
+ * - kind: "past"               -> past gifts (history)
  *
- * Abwärtskompatibel:
- * - alte Dokumente ohne `kind` gelten als "planned".
+ * Backward compatible:
+ * - legacy documents without `kind` are treated as "planned".
  */
 
 import {
@@ -103,7 +103,7 @@ function isDateInPast(date) {
 }
 
 function effectiveKind(docData) {
-  // alte docs ohne kind => planned
+  // legacy docs without kind => planned
   return normalizeString(docData?.kind) || "planned";
 }
 
@@ -115,12 +115,12 @@ function sortByDateDesc(items) {
 }
 
 // ======================================================
-// ✅ GEPLANTE GESCHENKE (default)
+// ✅ PLANNED GIFTS (default)
 // ======================================================
 
 /**
- * createGift = "geplantes" Geschenk (default)
- * (z.B. aus Geschenkideen-Konvertierung)
+ * createGift = "planned" gift (default)
+ * (e.g. from gift idea conversion)
  */
 export async function createGift({
   personId,
@@ -172,8 +172,8 @@ export async function getGift(id) {
 }
 
 /**
- * listGifts = geplante Geschenke (kind != "past")
- * Abwärtskompatibel: Dokumente ohne kind gelten als planned.
+ * listGifts = planned gifts (kind != "past")
+* Backward compatible: documents without kind are treated as planned.
  */
 export async function listGifts() {
   const ref = await giftsColRef();
@@ -247,8 +247,8 @@ export async function deleteGift(id) {
 }
 
 /**
- * Helper für TF-06:
- * Existieren IRGENDWELCHE Geschenke (planned oder past) für Person?
+ * Helper for TF-06:
+ * Do ANY gifts (planned or past) exist for a person?
  */
 export async function hasGiftsByPerson(personId) {
   const pid = requireNonEmpty("personId", personId);
@@ -259,11 +259,11 @@ export async function hasGiftsByPerson(personId) {
 }
 
 // ======================================================
-// ✅ VERGANGENE GESCHENKE (TF-09 bis TF-13)
+// ✅ PAST GIFTS (TF-09 to TF-13)
 // ======================================================
 
 /**
- * TF-09: Vergangenes Geschenk anlegen
+ * TF-09: Create a past gift
  */
 export async function createPastGift({
   personId,
@@ -301,7 +301,7 @@ export async function createPastGift({
 }
 
 /**
- * TF-13: Gesamtübersicht vergangene Geschenke
+ * TF-13: Overall overview of past gifts
  */
 export async function listPastGifts() {
   const ref = await giftsColRef();
@@ -314,7 +314,7 @@ export async function listPastGifts() {
 }
 
 /**
- * TF-10: Historie pro Person anzeigen
+ * TF-10: Show history per person
  */
 export async function listPastGiftsByPerson(personId) {
   const pid = requireNonEmpty("personId", personId);
@@ -328,7 +328,7 @@ export async function listPastGiftsByPerson(personId) {
 }
 
 /**
- * TF-11: Vergangenes Geschenk bearbeiten (Datum/Notiz/Anlass)
+ * TF-11: Edit a past gift (date/note/occasion)
  */
 export async function updatePastGift(id, patch = {}) {
   if (!id) throw new Error("ID fehlt.");
@@ -369,7 +369,7 @@ export async function updatePastGift(id, patch = {}) {
 }
 
 /**
- * TF-12: Vergangenes Geschenk löschen
+ * TF-12: Delete a past gift
  */
 export async function deletePastGift(id) {
   const current = await getGift(id);
@@ -382,7 +382,7 @@ export async function deletePastGift(id) {
   await deleteGift(id);
 }
 /**
- * Helper für TF-19: Existieren Geschenke (planned oder past) für Anlass?
+ * Helper for TF-19: Do gifts (planned or past) exist for an occasion?
  */
 export async function hasGiftsByOccasion(occasionId) {
   const oid = requireNonEmpty("occasionId", occasionId);
@@ -391,3 +391,4 @@ export async function hasGiftsByOccasion(occasionId) {
   const snap = await getDocs(q);
   return !snap.empty;
 }
+

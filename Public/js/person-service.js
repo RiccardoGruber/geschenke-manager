@@ -1,8 +1,8 @@
 /**
  * person-service.js
  * -------------------------------------------------------
- * CRUD-Service für Personen.
- * Speichert Daten unter:
+ * CRUD service for persons.
+ * Stores data under:
  * users/{uid}/persons/{personId}
  */
 
@@ -23,8 +23,8 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/fi
 import { auth, db } from "./firebase-config.js";
 
 /**
- * Wartet einmalig, bis Firebase Auth den User-Zustand sicher kennt.
- * (auth.currentUser ist beim initialen Laden oft kurz null)
+ * Waits once until Firebase Auth reliably knows the user state.
+ * (auth.currentUser is often briefly null during initial load)
  */
 function waitForAuthReadyOnce() {
   return new Promise((resolve) => {
@@ -36,7 +36,7 @@ function waitForAuthReadyOnce() {
 }
 
 /**
- * Holt aktuelle UID oder wirft Fehler (nachdem Auth ready ist).
+ * Gets the current UID or throws an error (after auth is ready).
  */
 export async function getUidOrThrow() {
   const user = auth.currentUser ?? (await waitForAuthReadyOnce());
@@ -45,7 +45,7 @@ export async function getUidOrThrow() {
 }
 
 /**
- * Person anlegen
+ * Create person
  */
 export async function createPerson({ name, birthday, info }) {
   if (!name?.trim()) throw new Error("Name ist Pflicht.");
@@ -65,7 +65,7 @@ export async function createPerson({ name, birthday, info }) {
 }
 
 /**
- * Personen laden
+ * Load persons
  */
 export async function listPersons() {
   const uid = await getUidOrThrow();
@@ -80,7 +80,7 @@ export async function listPersons() {
 }
 
 /**
- * Person bearbeiten
+ * Edit person
  */
 export async function updatePerson(id, { name, birthday, info }) {
   if (!id) throw new Error("ID fehlt.");
@@ -98,7 +98,7 @@ export async function updatePerson(id, { name, birthday, info }) {
 }
 
 /**
- * Person löschen
+ * Delete person
  */
 export async function deletePerson(id) {
   if (!id) throw new Error("ID fehlt.");
@@ -107,3 +107,4 @@ export async function deletePerson(id) {
   const ref = doc(db, "users", uid, "persons", id);
   await deleteDoc(ref);
 }
+

@@ -1,7 +1,6 @@
 ﻿/**
  * gifts-section.js
  * -------------------------------------------------------
- * Geschenke & Geschenkideen Verwaltung
  */
 
 import {
@@ -36,7 +35,7 @@ let currentTab = "ideas";
 let filters = { search: "", person: "all", status: "all", occasion: "all" };
 let eventListeners = [];
 let editingItem = null;
-let formMode = "none"; // 'none' | 'create' | 'edit' | 'convert'
+let formMode = "none";
 let convertIdeaId = null;
 let focusItemId = null;
 let activeDeleteModalCleanup = null;
@@ -46,7 +45,7 @@ let generatedSuggestions = [];
 let generatedForPersonId = "";
 let selectedGeneratedSuggestionIds = new Set();
 
-// Feste Anlässe (immer verfägbar, unabhä¤ngig von DB-Daten)
+// Feste Anlässe (immer verfügbar, unabhängig von DB-Daten)
 const FIXED_OCCASIONS = [
   { id: "geburtstag", name: "Geburtstag" },
   { id: "weihnachten", name: "Weihnachten" },
@@ -478,9 +477,7 @@ async function handleAdoptGeneratedSuggestions() {
   showUiPopup(`${adoptedCount} Ideen wurden übernommen.`, "success");
 }
 
-/**
- * Entfernt aus DB-Anlässen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
- */
+//Entfernt aus DB-Anlässen alle, die einem festen Anlass entsprechen oder doppelt vorkommen.
 function getDeduplicatedOccasions() {
   const fixedNames = FIXED_OCCASIONS.map((o) => o.name.toLowerCase());
   const seen = new Set();

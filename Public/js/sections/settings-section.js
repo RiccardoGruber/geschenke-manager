@@ -1,12 +1,6 @@
 /**
  * settings-section.js
  * -------------------------------------------------------
- * Frontend-Einstellungen (lokal im localStorage gespeichert)
- *
- * Einstellungen:
- *   displayName    – Anzeigename im Profil-Dropdown
- *   defaultSection – Standard-Startseite nach Login
- *   reminderDays   – Erinnerung X Tage vor einem Anlass
  */
 
 export function render(container, ctx) {
@@ -63,7 +57,7 @@ export function render(container, ctx) {
     </div>
   `;
 
-  // Feedback-Box (3 Sekunden sichtbar)
+  // Feedback box 
   function showSettingsMessage(msg, type = "success") {
     const box = document.getElementById("settingsMessage");
     if (!box) return;
@@ -73,7 +67,7 @@ export function render(container, ctx) {
     }, 3000);
   }
 
-  // Anzeigename speichern
+  // Save display name
   const saveNameBtn = document.getElementById("saveDisplayNameBtn");
   const nameInput = document.getElementById("settingDisplayName");
   if (saveNameBtn && nameInput) {
@@ -84,7 +78,7 @@ export function render(container, ctx) {
     });
   }
 
-  // Standard-Startseite speichern (direkt beim Wechsel)
+  // Dave default start section
   const defaultSelect = document.getElementById("settingDefaultSection");
   if (defaultSelect) {
     defaultSelect.addEventListener("change", (e) => {
@@ -93,7 +87,7 @@ export function render(container, ctx) {
     });
   }
 
-  // Erinnerungstage speichern
+  // Save reminder days
   const saveReminderBtn = document.getElementById("saveReminderDaysBtn");
   const reminderInput = document.getElementById("settingReminderDays");
   if (saveReminderBtn && reminderInput) {
@@ -106,5 +100,4 @@ export function render(container, ctx) {
 }
 
 export function destroy() {
-  // Keine persistenten Listener — nichts zu bereinigen
 }

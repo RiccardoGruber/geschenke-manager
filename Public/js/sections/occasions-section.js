@@ -1,9 +1,6 @@
 /**
  * occasions-section.js
  * -------------------------------------------------------
- * Anlässe-Verwaltung
- * - Kartendesign mit Countdown und Typ-Unterscheidung
- * - Filter nach Zeitraum, Typ und Status
  */
 
 import {
@@ -30,7 +27,7 @@ let allOccasions = [];
 let filteredOccasions = [];
 let allPersons = [];
 let editingId = null;
-let mode = "none"; // 'none' | 'create' | 'edit'
+let mode = "none";
 let eventListeners = [];
 let activeDeleteModalCleanup = null;
 let messageTimer = null;
@@ -394,7 +391,7 @@ export async function render(container, ctx) {
   renderList();
   renderForm();
 
-  // Auf spezifischen Anlass scrollen falls per Navigation übergeben
+  // Scroll to specific event if transferred via navigation
   if (ctx.params?.id) {
     const card = container.querySelector(`[data-id="${ctx.params.id}"]`);
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -756,7 +753,7 @@ function renderForm() {
     </div>
   `;
 
-  // Datepicker: Klick auf die ganze Gruppe öffnet den Picker
+  // Date picker: Clicking on the entire group opens the picker.r
   const dateInput = document.getElementById("formDate");
   const dateGroup = dateInput.closest(".input-group");
   dateGroup.style.cursor = "pointer";
@@ -828,7 +825,6 @@ function attachEventListeners(ctx) {
     attachListListeners(ctx);
   });
 
-  // "Neu"-Button
   addListener(document.getElementById("addOccasionBtn"), "click", (e) => {
     e.preventDefault();
     mode = "create";
@@ -956,7 +952,6 @@ function attachEventListeners(ctx) {
 }
 
 function attachListListeners(ctx) {
-  // Bearbeiten
   document.querySelectorAll("#listContainer .edit-btn").forEach((btn) => {
     addListener(btn, "click", (e) => {
       e.preventDefault();
@@ -968,7 +963,6 @@ function attachListListeners(ctx) {
     });
   });
 
-  // Löschen
   document.querySelectorAll("#listContainer .delete-btn").forEach((btn) => {
     addListener(btn, "click", async (e) => {
       e.preventDefault();

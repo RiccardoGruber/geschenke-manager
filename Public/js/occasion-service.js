@@ -1,11 +1,11 @@
 /**
  * occasion-service.js
  * -------------------------------------------------------
- * CRUD-Service für Anlässe.
- * Speichert Daten unter:
+ * CRUD service for occasions.
+ * Stores data under:
  * users/{uid}/occasions/{occasionId}
  *
- * Default-Anlässe:
+ * Default occasions:
  * - Geburtstag (fixed)
  * - Weihnachten (fixed)
  */
@@ -29,8 +29,8 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/fi
 import { auth, db } from "./firebase-config.js";
 
 /**
- * Wartet einmalig, bis Firebase Auth den User-Zustand sicher kennt.
- * (auth.currentUser ist beim initialen Laden oft kurz null)
+ * Waits once until Firebase Auth reliably knows the user state.
+ * (auth.currentUser is often briefly null during initial load)
  */
 function waitForAuthReadyOnce() {
   return new Promise((resolve) => {
@@ -42,7 +42,7 @@ function waitForAuthReadyOnce() {
 }
 
 /**
- * Holt aktuelle UID oder wirft Fehler (nachdem Auth ready ist).
+ * Gets the current UID or throws an error (after auth is ready).
  */
 export async function getUidOrThrow() {
   const user = auth.currentUser ?? (await waitForAuthReadyOnce());
@@ -51,7 +51,7 @@ export async function getUidOrThrow() {
 }
 
 /**
- * Interne Helper: Referenz auf user-spezifische Occasion-Collection
+ * Internal helper: reference to the user-specific occasion collection
  */
 async function occasionsColRef() {
   const uid = await getUidOrThrow();
@@ -59,18 +59,18 @@ async function occasionsColRef() {
 }
 
 /**
- * Default-Anlässe sicherstellen (einmalig, falls noch nicht vorhanden).
+ * Ensure default occasions (once, if not already present).
  */
 export async function ensureDefaultOccasions() {
   const ref = await occasionsColRef();
 
-  // Prüfen, ob es bereits fixed-Anlässe gibt (oder überhaupt Daten)
+  // Check whether fixed occasions already exist (or any data at all)
   const q = query(ref, where("type", "==", "fixed"), limit(1));
   const snap = await getDocs(q);
 
   if (!snap.empty) return; // defaults existieren bereits
 
-  // Default-Anlässe anlegen
+  // Create default occasions
   const defaults = [
     { name: "Geburtstag", type: "fixed", isActive: true },
     { name: "Weihnachten", type: "fixed", isActive: true },
@@ -86,7 +86,7 @@ export async function ensureDefaultOccasions() {
 }
 
 /**
- * Anlass anlegen (frei / custom)
+ * Create occasion (free/custom)
  */
 export async function createOccasion({
   name,
@@ -117,7 +117,7 @@ export async function createOccasion({
 }
 
 /**
- * Anlässe laden (sortiert)
+ * Load occasions (sorted)
  */
 export async function listOccasions() {
   const ref = await occasionsColRef();
@@ -133,7 +133,7 @@ export async function listOccasions() {
 }
 
 /**
- * Anlass bearbeiten
+ * Edit occasion
  */
 export async function updateOccasion(
   id,
@@ -166,13 +166,13 @@ import { hasGiftIdeasByOccasion } from "./gift-idea-service.js";
 import { hasGiftsByOccasion } from "./gift-service.js";
 
 /**
- * Anlass löschen (TF-19)
- * - wenn Zuordnungen existieren -> löschen verhindern
+ * Delete occasion (TF-19)
+ * - if assignments exist -> prevent deletion
  */
 export async function deleteOccasion(id) {
   if (!id) throw new Error("ID fehlt.");
 
-  // Abhängigkeiten prüfen
+  // Check dependencies
   const [hasIdeas, hasGifts] = await Promise.all([
     hasGiftIdeasByOccasion(id),
     hasGiftsByOccasion(id),
@@ -188,3 +188,4 @@ export async function deleteOccasion(id) {
   const ref = doc(db, "users", uid, "occasions", id);
   await deleteDoc(ref);
 }
+

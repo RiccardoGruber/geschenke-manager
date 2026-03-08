@@ -1,6 +1,6 @@
 /**
  * login.js
- * Steuert das Verhalten der Login-Seite.
+ * Controls the behavior of the login page.
  */
 
 import { loginUnified, isAuthed, waitForUserOnce } from "./auth-adapter.js";
@@ -42,3 +42,4 @@ form.addEventListener("submit", async (e) => {
     btn.disabled = false;
   }
 });
+

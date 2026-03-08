@@ -1,7 +1,7 @@
 /**
  * gift-convert.js
  * -------------------------------------------------------
- * Umwandlung Geschenkidee -> Geschenk
+ * Convert gift idea -> gift
  */
 
 import { getGiftIdea, updateGiftIdea } from "./gift-idea-service.js";
@@ -16,10 +16,10 @@ function todayYYYYMMDD() {
 }
 
 /**
- * Konvertiert eine Idee in ein Geschenk.
- * - legt Gift an (date = heute)
- * - markiert Idee als "besorgt"
- * Rückgabe: { giftId }
+ * Converts an idea into a gift.
+ * - creates a gift (date = today)
+ * - marks the idea as "besorgt"
+ * Returns: { giftId }
  */
 export async function convertIdeaToGift(
   ideaId,
@@ -44,3 +44,4 @@ export async function convertIdeaToGift(
 
   return { giftId };
 }
+
